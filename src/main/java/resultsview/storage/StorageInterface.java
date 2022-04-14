@@ -28,9 +28,25 @@ package resultsview.storage;
  * @author zzambers
  */
 public interface StorageInterface {
-    
+
+    public Job getJob(String name);
+
+    public Pkg getPkg(String name);
+
+    public Iterable<Job> getJobs();
+
+    public Iterable<Run> getJobRuns(Job job);
+
+    public Iterable<Run> getPkgRuns(Pkg pkg);
+
+    public void removeJob(String name);
+
     public void storeJob(Job job);
-  
+
+    public void storePkg(Pkg pkg);
+
     public void storeRun(Run run);
-    
+
+    public void addPkgRun(Pkg pkg, Run run);
+
 }

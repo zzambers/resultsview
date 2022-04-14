@@ -27,14 +27,12 @@ package resultsview.storage;
  *
  * @author zzambers
  */
-public class Run {
+public class Run  implements Comparable<Run> {
 
     /* sql fields */
-    long id;
-    long jobId;
+    final Job job;
+    final String name;
     int status;
-    String strId;
-    String name;
 
     public static final int UNKNOWN = 0;
     public static final int RUNNING = 1;
@@ -44,42 +42,17 @@ public class Run {
     public static final int ERROR = 5;
     public static final int CANCELED = 6;
 
-    public Run(long jobId, String strId, String name) {
-        this.jobId = jobId;
-        this.strId = strId;
+    public Run(Job job, String name) {
+        this.job = job;
         this.name = name;
     }
 
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public long getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(long jobId) {
-        this.jobId = jobId;
-    }
-
-    public String getStrId() {
-        return strId;
-    }
-
-    public void setStrId(String strId) {
-        this.strId = strId;
+    public Job getJob() {
+        return job;
     }
 
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public int getStatus() {
@@ -88,6 +61,35 @@ public class Run {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (getClass() != o.getClass()) {
+            return false;
+        }
+        Run o1 = (Run) o;
+        if (!job.equals(o1.job)) {
+            return false;
+        }
+        if (!name.equals(o1.name)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return 7 * job.hashCode() + name.hashCode();
+    }
+
+    @Override
+    public int compareTo(Run t) {
+        int res = job.compareTo(t.job);
+        return res != 0 ? res : name.compareTo(t.name);
     }
 
 }

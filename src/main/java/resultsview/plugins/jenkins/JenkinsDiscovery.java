@@ -39,9 +39,9 @@ import java.util.regex.Pattern;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import resultsview.common.VersionUtil;
-import resultsview.storage.PluginConf;
 import resultsview.storage.Job;
 import resultsview.storage.Run;
+import resultsview.storage.Pkg;
 import resultsview.storage.StorageInterface;
 import resultsview.xml.BuildXmlHandler;
 
@@ -53,21 +53,19 @@ public class JenkinsDiscovery {
 
     Path jobsRoot;
     StorageInterface storage;
+    public Pattern jobPattern = null;
 
-    PluginConf depl;
-    Map<Long, Job> knownJobsMapById = new HashMap();
     Map<String, Job> knownJobsMap = new HashMap();
-    Map<Long, Run> latestKnownRunMap = new HashMap();
-    Set<Run> runningSet = new HashSet();
+    Map<Job, Run> latestKnownRunMap = new HashMap();
+    Map<String, String> runNameMap = new HashMap();
+    public Set<Run> runningSet = new HashSet();
 
     public long lastPollTime = Long.MIN_VALUE;
-
     private static final Pattern NUMBER_PATTERN = Pattern.compile("[0-9]+");
 
-    public JenkinsDiscovery(Path jobsRoot, StorageInterface storage, PluginConf depl) {
+    public JenkinsDiscovery(Path jobsRoot, StorageInterface storage) {
         this.jobsRoot = jobsRoot;
         this.storage = storage;
-        this.depl = depl;
     }
 
     public List<Path> listDirVerSorted(Path dir) throws IOException {
@@ -100,6 +98,7 @@ public class JenkinsDiscovery {
 
     public void poll() throws Exception {
         long time = System.currentTimeMillis();
+        pollRunning();
         pollNewJobs();
         lastPollTime = time;
     }
@@ -107,32 +106,48 @@ public class JenkinsDiscovery {
     void pollNewJobs() throws Exception {
         long modifTime = Files.getLastModifiedTime(jobsRoot).toMillis();
         if (modifTime >= lastPollTime) {
+            Set<String> foundJobNames = new HashSet();
             try (DirectoryStream<Path> jobPaths = Files.newDirectoryStream(jobsRoot)) {
                 for (Path jobPath : jobPaths) {
                     String jobName = jobPath.getFileName().toString();
-                    Job job = knownJobsMap.get(jobName);
+                    if (jobPattern != null && !jobPattern.matcher(jobName).matches()) {
+                        continue;
+                    }
+                    foundJobNames.add(jobName);
+                    Job job = getJob(jobName);
                     if (job == null
                             && Files.isDirectory(jobPath)
                             && Files.exists(jobPath.resolve("config.xml"))) {
-                        job = new Job(depl.getId(), jobName, jobName);
+                        job = new Job(jobName);
                         storage.storeJob(job);
-                        knownJobsMap.put(jobName, job);
-                        knownJobsMapById.put(job.getId(), job);
+                        // knownJobsMap.put(jobName, job);
                     }
                 }
             }
+            Set<String> removedJobs = new HashSet();
+            for (Job job : getJobs()) {
+                String jobName = job.getName();
+                if (!foundJobNames.contains(jobName)) {
+                    removedJobs.add(jobName);
+                }
+            }
+            for (String removedName : removedJobs) {
+                removeJob(removedName);
+            }
+        } else {
+            System.out.println("Skipped poll: modifTime: " + modifTime + " lastPollTime: " + lastPollTime);
         }
-        for (Job job : knownJobsMap.values()) {
+        for (Job job : getJobs()) {
             pollNewRuns(job);
         }
     }
 
     void pollNewRuns(Job job) throws IOException {
-        Path jobDir = jobsRoot.resolve(job.getStrId());
+        Path jobDir = jobsRoot.resolve(job.getName());
         if (!Files.isDirectory(jobDir)) {
             return;
         }
-        Run latestKnownRun = latestKnownRunMap.get(job.getId());
+        Run latestKnownRun = latestKnownRunMap.get(job);
         Path buildsDir = jobDir.resolve("builds");
         //Path nextBuildFile = jobDir.resolve("nextBuildNumber");
         long modifTime = Files.getLastModifiedTime(buildsDir).toMillis();
@@ -155,12 +170,13 @@ public class JenkinsDiscovery {
                     if (NUMBER_PATTERN.matcher(buildId).matches()) {
                         Run run = null;
                         if (latestKnownRunName == null || VersionUtil.versionCompare(latestKnownRunName, buildId) < 0) {
-                            Path buildXml = buildDir.resolve("build.xml");
-                            int status = getStatus(buildXml);
-                            run = new Run(job.getId(), buildId, buildId);
-                            run.setStatus(status);
+                            runNameMap.putIfAbsent(buildId, buildId);
+                            buildId = runNameMap.get(buildId);
+                            run = new Run(job, buildId);
+                            processRun(run);
                             storage.storeRun(run);
-                            latestKnownRunMap.put(job.getId(), run);
+                            latestKnownRunMap.put(job, run);
+                            int status = run.getStatus();
                             if (status == Run.RUNNING) {
                                 runningSet.add(run);
                             }
@@ -168,75 +184,118 @@ public class JenkinsDiscovery {
                     }
                 }
             }
-            
+
         }
     }
 
-    public int getStatus(Path buildXml) {
+    public BuildXmlHandler parseBuildXml(Path buildXml) {
+        BuildXmlHandler handler = null;
         if (Files.exists(buildXml)) {
             try {
                 SAXParserFactory factory = SAXParserFactory.newInstance();
                 SAXParser saxParser;
                 saxParser = factory.newSAXParser();
-                BuildXmlHandler handler = new BuildXmlHandler();
+                handler = new BuildXmlHandler();
                 saxParser.parse(buildXml.toFile(), handler);
-                String result = handler.getResult();
-                if (result != null) {
-                    switch (result.toUpperCase()) {
-                        case "SUCCESS":
-                            return Run.PASSED;
-                        case "UNSTABLE":
-                            return Run.FAILED;
-                        case "FAILURE":
-                            return Run.ERROR;
-                        case "ABORTED":
-                            return Run.CANCELED;
-                    }
-                }
             } catch (Exception e) {
+                return null;
                 /* Ignore parser errors */
+            }
+        }
+        return handler;
+    }
+
+    public int getStatus(BuildXmlHandler handler) {
+        if (handler != null) {
+            String resultStr = handler.getResult();
+            int result = Run.RUNNING;
+            if (resultStr != null) {
+                switch (resultStr.toUpperCase()) {
+                    case "SUCCESS":
+                        return Run.PASSED;
+                    case "UNSTABLE":
+                        return Run.FAILED;
+                    case "FAILURE":
+                        return Run.ERROR;
+                    case "ABORTED":
+                        return Run.CANCELED;
+                }
             }
         }
         return Run.RUNNING;
     }
 
-    void pollRunning() throws IOException {
+    public void pollRunning() throws IOException {
+        Set<Run> finishedSet = new HashSet();
         for (Run run : runningSet) {
-            Job owningJob = knownJobsMapById.get(run.getJobId());
-            pollRunning2(run, owningJob);
+            processRun(run);
+            int status = run.getStatus();
+            if (status != Run.RUNNING) {
+                finishedSet.add(run);
+            }
+        }
+        for (Run run : finishedSet) {
+            runningSet.remove(run);
         }
     }
 
-    void pollRunning2(Run run, Job owningJob) throws IOException {
-        Path jobDir = jobsRoot.resolve(owningJob.getStrId());
+    void processRun(Run run) throws IOException {
+        Job owningJob = run.getJob();
+        Path jobDir = jobsRoot.resolve(owningJob.getName());
         if (!Files.isDirectory(jobDir)) {
             return;
         }
         Path buildsDir = jobDir.resolve("builds");
-        Path buildDir = buildsDir.resolve(run.getStrId());
+        Path buildDir = buildsDir.resolve(run.getName());
         Path buildXml = buildDir.resolve("build.xml");
         if (Files.exists(buildXml)) {
             long modifTime = Files.getLastModifiedTime(buildXml).toMillis();
             if (modifTime >= lastPollTime) {
-                int status = getStatus(buildXml);
-                if (status != Run.RUNNING) {
-                    run.setStatus(status);
-                    runningSet.remove(run);
+                int status = Run.RUNNING;
+                BuildXmlHandler handler = parseBuildXml(buildXml);
+                if (handler != null) {
+                    status = getStatus(handler);
+                    String pkgName = handler.getPkgName();
+                    String pkgVersion = handler.getPkgVersion();
+                    String pkgRelease = handler.getPkgRelease();
+                    if (pkgName != null && pkgVersion != null && pkgRelease != null) {
+                        String nvr = pkgName + "-" + pkgVersion + "-" + pkgRelease;
+                        //run.build = nvr;
+                        Pkg pkg = storage.getPkg(nvr);
+                        if (pkg == null) {
+                            pkg = new Pkg(nvr);
+                            storage.storePkg(pkg);
+                        }
+                        storage.addPkgRun(pkg, run);
+                    }
                 }
+                run.setStatus(status);
             }
         }
     }
 
-    void updateRun(Run run) {
-
+    Job getJob(String name) {
+        return storage.getJob(name);
+        //return knownJobsMap.get(name);
     }
 
-    void storeJob(Job newJob) {
-
+    Iterable<Job> getJobs() {
+        return storage.getJobs();
+        //return knownJobsMap.values();
     }
 
-    void storeRun(Run newRun) {
+    Run getLatestKnownRun(Job job) {
+        return latestKnownRunMap.get(job);
+    }
 
+    void removeJob(String name) {
+        //Job removedJob = knownJobsMap.remove(name);
+        Job removedJob = storage.getJob(name);
+        for (Run run : storage.getJobRuns(removedJob)) {
+            runningSet.remove(run);
+        }
+        latestKnownRunMap.remove(removedJob);
+        storage.removeJob(name);
     }
 
 }
