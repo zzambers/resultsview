@@ -27,56 +27,38 @@ package resultsview.storage;
  *
  * @author zzambers
  */
-public class Job {
+public class Job implements Comparable<Job> {
 
-    long id;
-    long deployementId;
-    String strId;
-    String name;
+    final String name;
 
-    public Job(long deployementId, String strId, String name) {
-        this.deployementId = deployementId;
-        this.strId = strId;
+    public Job(String name) {
         this.name = name;
-    }
-
-    public Job(long id, long deployementId, String strId, String name) {
-        this.id = id;
-        this.deployementId = deployementId;
-        this.strId = strId;
-        this.name = name;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public long getDeployementId() {
-        return deployementId;
-    }
-
-    public void setDeployementId(long deployementId) {
-        this.deployementId = deployementId;
-    }
-
-    public String getStrId() {
-        return strId;
-    }
-
-    public void setStrId(String strId) {
-        this.strId = strId;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (getClass() != o.getClass()) {
+            return false;
+        }
+        Job o1 = (Job) o;
+        return name.equals(o1.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
+    @Override
+    public int compareTo(Job t) {
+        return name.compareTo(t.name);
     }
 
 }

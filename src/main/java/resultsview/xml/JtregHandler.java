@@ -111,11 +111,10 @@ public class JtregHandler extends SAXTreeHandler {
         public ArrayList<TestCase> getTestCases() {
             return testCases;
         }
-        
+
         public void addTestCase(TestCase tc) {
             testCases.add(tc);
         }
-        
 
         public String getName() {
             return name;

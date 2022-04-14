@@ -23,10 +23,98 @@
  */
 package resultsview.storage;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  *
  * @author zzambers
  */
-public class Storage {
-    
+public class Storage implements StorageInterface {
+
+    Map<String, Job> jobs = new HashMap();
+    Map<Job, Set<Run>> jobsRuns = new HashMap();
+
+    Map<String, Pkg> pkgs = new HashMap();
+    Map<Pkg, Set<Run>> pkgsRuns = new HashMap();
+    //Map<Job, Map<String, Run>> jobsRuns = new HashMap();
+
+    public Job getJob(String name) {
+        return jobs.get(name);
+    }
+
+    public Pkg getPkg(String name) {
+        return pkgs.get(name);
+    }
+
+    public Collection<Job> getJobs() {
+        return jobs.values();
+    }
+
+    public Collection<Pkg> getPkgs() {
+        return pkgs.values();
+    }
+
+    public Collection<Run> getJobRuns(Job job) {
+        HashSet<Run> runs = (HashSet<Run>) jobsRuns.get(job);
+        return runs != null ? (HashSet<Run>) runs.clone() : Collections.<Run>emptySet();
+    }
+
+    public Collection<Run> getPkgRuns(Pkg pkg) {
+        HashSet<Run> runs = (HashSet<Run>) pkgsRuns.get(pkg);
+        return runs != null ? (HashSet<Run>) runs.clone() : Collections.<Run>emptySet();
+    }
+
+    public void removeJob(String name) {
+        Job removedJob = jobs.remove(name);
+        Set<Run> removedRuns = jobsRuns.remove(removedJob);
+        if (removedRuns != null) {
+            for (Run run : removedRuns) {
+                for (Pkg pkg : pkgs.values()) {
+                    Set<Run> pkgRuns = pkgsRuns.get(pkg);
+                    if (pkgRuns != null) {
+                        pkgRuns.remove(run);
+                    }
+                }
+            }
+        }
+    }
+
+    public void storeJob(Job job) {
+        String name = job.getName();
+        jobs.put(name, job);
+    }
+
+    public void storePkg(Pkg pkg) {
+        String name = pkg.getStrId();
+        pkgs.put(name, pkg);
+    }
+
+    public void storeRun(Run run) {
+        Job job = run.getJob();
+        Set<Run> runs = jobsRuns.get(job);
+        if (runs == null) {
+            runs = new HashSet();
+            jobsRuns.put(job, runs);
+        }
+        if (!runs.contains(run)) {
+            runs.add(run);
+        }
+    }
+
+    public void addPkgRun(Pkg pkg, Run run) {
+        Set<Run> runs = pkgsRuns.get(pkg);
+        if (runs == null) {
+            runs = new HashSet();
+            pkgsRuns.put(pkg, runs);
+        }
+        if (!runs.contains(run)) {
+            runs.add(run);
+        }
+    }
+
 }

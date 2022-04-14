@@ -29,24 +29,10 @@ package resultsview.storage;
  */
 public class Pkg {
 
-    long id;
     String strId;
 
     public Pkg(String strId) {
         this.strId = strId;
-    }
-
-    public Pkg(long id, String strId) {
-        this.id = id;
-        this.strId = strId;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
     }
 
     public String getStrId() {
@@ -55,6 +41,26 @@ public class Pkg {
 
     public void setStrId(String strId) {
         this.strId = strId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (getClass() != o.getClass()) {
+            return false;
+        }
+        Pkg o1 = (Pkg) o;
+        if (!strId.equals(o1.strId)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return strId.hashCode();
     }
 
 }
