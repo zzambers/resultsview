@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 zzambers.
+ * Copyright 2022 zzambers.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package resultsview.plugins.jenkins;
+package resultsview.poll;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -45,11 +45,7 @@ import resultsview.storage.Pkg;
 import resultsview.storage.StorageInterface;
 import resultsview.xml.BuildXmlHandler;
 
-/**
- *
- * @author zzambers
- */
-public class JenkinsDiscovery {
+public class JenkinsPoller {
 
     Path jobsRoot;
     StorageInterface storage;
@@ -60,10 +56,10 @@ public class JenkinsDiscovery {
     Map<String, String> runNameMap = new HashMap();
     public Set<Run> runningSet = new HashSet();
 
-    public long lastPollTime = Long.MIN_VALUE;
+    public long rootModifTime = Long.MIN_VALUE;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("[0-9]+");
 
-    public JenkinsDiscovery(Path jobsRoot, StorageInterface storage) {
+    public JenkinsPoller(Path jobsRoot, StorageInterface storage) {
         this.jobsRoot = jobsRoot;
         this.storage = storage;
     }
@@ -97,15 +93,14 @@ public class JenkinsDiscovery {
     }
 
     public void poll() throws Exception {
-        long time = System.currentTimeMillis();
         pollRunning();
         pollNewJobs();
-        lastPollTime = time;
     }
 
     void pollNewJobs() throws Exception {
         long modifTime = Files.getLastModifiedTime(jobsRoot).toMillis();
-        if (modifTime >= lastPollTime) {
+        if (modifTime > rootModifTime) {
+            rootModifTime = modifTime;
             Set<String> foundJobNames = new HashSet();
             try (DirectoryStream<Path> jobPaths = Files.newDirectoryStream(jobsRoot)) {
                 for (Path jobPath : jobPaths) {
@@ -124,18 +119,14 @@ public class JenkinsDiscovery {
                     }
                 }
             }
-            Set<String> removedJobs = new HashSet();
             for (Job job : getJobs()) {
                 String jobName = job.getName();
                 if (!foundJobNames.contains(jobName)) {
-                    removedJobs.add(jobName);
+                    removeJob(jobName);
                 }
             }
-            for (String removedName : removedJobs) {
-                removeJob(removedName);
-            }
         } else {
-            System.out.println("Skipped poll: modifTime: " + modifTime + " lastPollTime: " + lastPollTime);
+            System.out.println("Skipped poll: modifTime: " + modifTime + " rootModifTime: " + rootModifTime);
         }
         for (Job job : getJobs()) {
             pollNewRuns(job);
@@ -144,14 +135,15 @@ public class JenkinsDiscovery {
 
     void pollNewRuns(Job job) throws IOException {
         Path jobDir = jobsRoot.resolve(job.getName());
-        if (!Files.isDirectory(jobDir)) {
+        Path buildsDir = jobDir.resolve("builds");
+        if (!Files.exists(buildsDir)) {
             return;
         }
         Run latestKnownRun = latestKnownRunMap.get(job);
-        Path buildsDir = jobDir.resolve("builds");
         //Path nextBuildFile = jobDir.resolve("nextBuildNumber");
         long modifTime = Files.getLastModifiedTime(buildsDir).toMillis();
-        if (modifTime >= lastPollTime || latestKnownRun == null) {
+        if (modifTime > job.modifTime || latestKnownRun == null) {
+            job.modifTime = modifTime;
             String latestKnownRunName
                     = latestKnownRun == null ? null : latestKnownRun.getName();
             /*
@@ -165,14 +157,13 @@ public class JenkinsDiscovery {
              */
 
             for (Path buildDir : listDirVerSorted(buildsDir)) {
-                if (Files.isDirectory(buildDir)) {
-                    String buildId = buildDir.getFileName().toString();
-                    if (NUMBER_PATTERN.matcher(buildId).matches()) {
-                        Run run = null;
-                        if (latestKnownRunName == null || VersionUtil.versionCompare(latestKnownRunName, buildId) < 0) {
+                String buildId = buildDir.getFileName().toString();
+                if (NUMBER_PATTERN.matcher(buildId).matches()) {
+                    if (latestKnownRunName == null || VersionUtil.versionCompare(latestKnownRunName, buildId) < 0) {
+                        if (Files.isDirectory(buildDir)) {
                             runNameMap.putIfAbsent(buildId, buildId);
                             buildId = runNameMap.get(buildId);
-                            run = new Run(job, buildId);
+                            Run run = new Run(job, buildId);
                             processRun(run);
                             storage.storeRun(run);
                             latestKnownRunMap.put(job, run);
@@ -218,6 +209,7 @@ public class JenkinsDiscovery {
                     case "FAILURE":
                         return Run.ERROR;
                     case "ABORTED":
+                    case "NOT_BUILT":
                         return Run.CANCELED;
                 }
             }
@@ -242,15 +234,13 @@ public class JenkinsDiscovery {
     void processRun(Run run) throws IOException {
         Job owningJob = run.getJob();
         Path jobDir = jobsRoot.resolve(owningJob.getName());
-        if (!Files.isDirectory(jobDir)) {
-            return;
-        }
         Path buildsDir = jobDir.resolve("builds");
         Path buildDir = buildsDir.resolve(run.getName());
         Path buildXml = buildDir.resolve("build.xml");
         if (Files.exists(buildXml)) {
             long modifTime = Files.getLastModifiedTime(buildXml).toMillis();
-            if (modifTime >= lastPollTime) {
+            if (modifTime > run.modifTime) {
+                run.modifTime = modifTime;
                 int status = Run.RUNNING;
                 BuildXmlHandler handler = parseBuildXml(buildXml);
                 if (handler != null) {
@@ -271,6 +261,8 @@ public class JenkinsDiscovery {
                 }
                 run.setStatus(status);
             }
+        } else if (run.getStatus() == Run.UNKNOWN) {
+            run.setStatus(Run.RUNNING);
         }
     }
 
@@ -291,6 +283,9 @@ public class JenkinsDiscovery {
     void removeJob(String name) {
         //Job removedJob = knownJobsMap.remove(name);
         Job removedJob = storage.getJob(name);
+        if (removedJob == null) {
+            return;
+        }
         for (Run run : storage.getJobRuns(removedJob)) {
             runningSet.remove(run);
         }

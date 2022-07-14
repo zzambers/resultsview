@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 zzambers.
+ * Copyright 2022 zzambers.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,21 +23,21 @@
  */
 package resultsview.storage;
 
-/**
- *
- * @author zzambers
- */
+import java.util.Collection;
+
 public interface StorageInterface {
 
     public Job getJob(String name);
 
     public Pkg getPkg(String name);
 
-    public Iterable<Job> getJobs();
+    public Collection<Job> getJobs();
 
-    public Iterable<Run> getJobRuns(Job job);
+    public Collection<Pkg> getPkgs();
 
-    public Iterable<Run> getPkgRuns(Pkg pkg);
+    public Collection<Run> getJobRuns(Job job);
+
+    public Collection<Run> getPkgRuns(Pkg pkg);
 
     public void removeJob(String name);
 

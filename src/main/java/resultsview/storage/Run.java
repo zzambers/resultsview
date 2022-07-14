@@ -1,9 +1,7 @@
-package resultsview.storage;
-
 /*
  * The MIT License
  *
- * Copyright 2020 zzambers.
+ * Copyright 2022 zzambers.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,16 +21,14 @@ package resultsview.storage;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/**
- *
- * @author zzambers
- */
+package resultsview.storage;
+
 public class Run  implements Comparable<Run> {
 
-    /* sql fields */
     final Job job;
     final String name;
     int status;
+    public long modifTime = Long.MIN_VALUE;
 
     public static final int UNKNOWN = 0;
     public static final int RUNNING = 1;
