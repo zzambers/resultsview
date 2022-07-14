@@ -39,27 +39,25 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import resultsview.plugins.jenkins.JenkinsDiscovery;
+import resultsview.poll.JenkinsPoller;
+import resultsview.storage.ConcurrentStorage;
 import resultsview.storage.Pkg;
 import resultsview.storage.Run;
 import resultsview.storage.Storage;
 
-/**
- *
- * @author zzambers
- */
 public class Runs extends HttpServlet {
 
     private final Worker worker = new Worker();
-    private final Storage storage = new Storage();
-    private final JenkinsDiscovery jenkinsPoller = new JenkinsDiscovery(Paths.get("/mnt/hydra-mnt/raid/jobs"), storage);
+    private final Storage storage = new ConcurrentStorage();
+    private final JenkinsPoller jenkinsPoller = new JenkinsPoller(Paths.get("/mnt/hydra-mnt/raid/jobs"), storage);
     private final Timer timer = new Timer();
     private volatile boolean initialPollDone = false;
 
     @Override
     public void init() {
         worker.start();
-        // jenkinsPoller.jobPattern = Pattern.compile("rhqe-jp8-ojdk8~rpms-el8z.ppc64le.*");
+        //jenkinsPoller.jobPattern = Pattern.compile("rhqe-jp8-ojdk8~rpms-el8z.ppc64le.*");
+        //jenkinsPoller.jobPattern = Pattern.compile("c~j~c-jp8-ojdk8~rpms-el8.aarch64-fastdebug.sdk-el8.aarch64.vagrant-x11.defaultgc.legacy.lnxagent.*");
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -117,25 +115,35 @@ public class Runs extends HttpServlet {
             out.println("<td>");
             switch (status) {
                 case Run.RUNNING:
+                    out.println("<span class=\"rtxt-running\">");
                     out.println("RUNNING");
+                    out.println("</span>");
                     break;
                 case Run.PASSED:
+                    out.println("<span class=\"rtxt-passed\">");
                     out.println("PASSED");
+                    out.println("</span>");
                     break;
                 case Run.FAILED:
+                    out.println("<span class=\"rtxt-failed\">");
                     out.println("FAILED");
+                    out.println("</span>");
                     break;
                 case Run.ERROR:
+                    out.println("<span class=\"rtxt-error\">");
                     out.println("ERROR");
+                    out.println("</span>");
                     break;
                 case Run.CANCELED:
-                    out.println("CANCELED");
+                    out.println("<span class=\"rtxt-cancelled\">");
+                    out.println("ABORTED");
+                    out.println("</span>");
                     break;
                 case Run.FINISHED:
                     out.println("FINISHED");
                     break;
                 case Run.UNKNOWN:
-                    out.println("UNKNOẄN");
+                    out.println("UNKNOWN");
                     break;
             }
             out.println("</td>");
@@ -275,11 +283,21 @@ public class Runs extends HttpServlet {
             out.println("<html>");
             out.println("<head>");
             out.println("<title>Runs</title>");
+            out.println("<style>");
+            out.println("table { border: 1px solid; border-collapse: collapse; }");
+            out.println("th, td { border: 1px solid; padding-left: 1em ; padding-right: 1em ; }");
+            out.println("a { text-decoration: none; }");
+            out.println(".rtxt-passed { color: green; }");
+            out.println(".rtxt-failed { color: orangered; }");
+            out.println(".rtxt-error { color: purple; }");
+            out.println(".rtxt-cancelled { color: gray; }");
+            out.println(".rtxt-running { color: blue; }");
+            out.println("</style>");
             out.println("</head>");
             out.println("<body>");
             final String pkgName = request.getParameter("pkg");
             final String pattern = request.getParameter("pattern");
-            final String pkgNameVal = pkgName == null ? "" : pkgName;
+            final String pkgNameVal = pkgName == null ? "" : pkgName.trim();
             final String patternVal = pattern == null ? "" : pattern;
             out.println("<form>");
             out.println("<label for=\"pattern\">Pkg:</label>");
@@ -289,8 +307,11 @@ public class Runs extends HttpServlet {
             out.println("<input type=\"submit\" value=\"Submit\"/>");
             out.println("<br/>");
             out.println("</form>");
+            out.println("<br/>");
 
             if (initialPollDone) {
+                printRunTable(out, pkgNameVal, patternVal);
+                /*
                 try {
                     worker.scheduleTaskAndWait(new Runnable() {
                         @Override
@@ -299,9 +320,9 @@ public class Runs extends HttpServlet {
                         }
                     });
                 } catch (InterruptedException ex) {
-                    /* ignored */
+                    // ignored
                 }
-
+                */
             } else {
                 out.println("Initial poll in progress...");
             }

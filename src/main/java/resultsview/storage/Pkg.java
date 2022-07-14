@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2020 zzambers.
+ * Copyright 2022 zzambers.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,6 @@
  */
 package resultsview.storage;
 
-/**
- *
- * @author zzambers
- */
 public class Pkg {
 
     String strId;
