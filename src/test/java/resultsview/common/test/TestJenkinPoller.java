@@ -245,7 +245,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
         Set<Run> runningSet = jenkins.runningSet;
         Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
 
         storage.jobctr = 0;
@@ -261,7 +261,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Zero new pkgs", 0, storage.pkgctr);
         Assert.assertEquals("Zero new pkgsRuns", 0, storage.pkgRunCtr);
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         storage.jobctr = 0;
         storage.runctr = 0;
@@ -292,7 +292,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
         Set<Run> runningSet = jenkins.runningSet;
         Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         createBuild(jenkinsJobs, "job4", 3, "pkg-1-3", "SUCCESS");
         storage.jobctr = 0;
@@ -310,7 +310,7 @@ public class TestJenkinPoller {
         Pkg pkg3 = storage.getPkg("pkg-1-3");
         Collection<Run> runsPkg3 = storage.getPkgRuns(pkg3);
         Assert.assertEquals("Correct number of runs for pkg3", 2, runsPkg3.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         createBuild(jenkinsJobs, "job2", 1, "pkg-1-3", "SUCCESS");
         storage.jobctr = 0;
@@ -347,7 +347,7 @@ public class TestJenkinPoller {
         Pkg pkg1 = storage.getPkg("pkg-1-1");
         Pkg pkg2 = storage.getPkg("pkg-1-2");
         Pkg pkg3 = storage.getPkg("pkg-1-3");
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         recursiveDelete(jenkinsJobs.resolve("job1"));
         storage.jobctr = 0;
@@ -371,7 +371,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Correct number of runs for pkg2", 2, runsPkg2.size());
         Collection<Run> runsPkg3 = storage.getPkgRuns(pkg3);
         Assert.assertEquals("Correct number of runs for pkg3", 1, runsPkg3.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         recursiveDelete(jenkinsJobs.resolve("job2"));
         storage.jobctr = 0;
@@ -395,7 +395,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Correct number of runs for pkg2", 2, runsPkg2.size());
         runsPkg3 = storage.getPkgRuns(pkg3);
         Assert.assertEquals("Correct number of runs for pkg3", 1, runsPkg3.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         recursiveDelete(jenkinsJobs.resolve("job3"));
         storage.jobctr = 0;
@@ -419,7 +419,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Correct number of runs for pkg2", 1, runsPkg2.size());
         runsPkg3 = storage.getPkgRuns(pkg3);
         Assert.assertEquals("Correct number of runs for pkg3", 1, runsPkg3.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         recursiveDelete(jenkinsJobs.resolve("job4"));
         storage.jobctr = 0;
@@ -459,7 +459,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
         Collection<Job> jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 4, jobs.size());
-        Thread.sleep(1);
+        Thread.sleep(10);
 
         createJob(jenkinsJobs, "job5");
         storage.jobctr = 0;
