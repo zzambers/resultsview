@@ -1,0 +1,6 @@
+# directory with jenkins jobs (can be just ro network mount)
+jenkins.job.dir=/mnt/jenkins/jobs
+# url of jenkins instance
+jenkins.url=http://jenkins.example.com:8080
+# filter jobs (optional)
+# jenkins.job.pattern=tck.*

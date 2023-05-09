@@ -25,6 +25,7 @@ package resultsview.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,7 +35,9 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Properties;
 import java.util.regex.Pattern;
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -47,17 +50,45 @@ import resultsview.storage.Storage;
 
 public class Runs extends HttpServlet {
 
-    private final Worker worker = new Worker();
-    private final Storage storage = new ConcurrentStorage();
-    private final JenkinsPoller jenkinsPoller = new JenkinsPoller(Paths.get("/mnt/hydra-mnt/raid/jobs"), storage);
-    private final Timer timer = new Timer();
+    private Properties props;
+    private String jenkinsUrl;
+
+    private Worker worker;
+    private Storage storage;
+    private JenkinsPoller jenkinsPoller;
+    private Timer timer;
     private volatile boolean initialPollDone = false;
 
     @Override
-    public void init() {
+    public void init(ServletConfig config) throws ServletException {
+        super.init(config);
+        InputStream is = getServletContext().getResourceAsStream("/WEB-INF/config.properties");
+        if (is == null) {
+            throw new ServletException("Config file not found in: /WEB-INF/config.properties");
+        }
+        props = new Properties();
+        try {
+            props.load(is);
+        } catch (Exception e) {
+            throw new ServletException(e);
+        }
+        jenkinsUrl = props.getProperty("jenkins.url");
+
+        String jobsDir = props.getProperty("jenkins.job.dir");
+        String jobPattern = props.getProperty("jenkins.job.pattern");
+        if (jobsDir == null) {
+            throw new ServletException("Required property not configured: jenkins.job.dir");
+        }
+
+        storage = new ConcurrentStorage();
+        jenkinsPoller = new JenkinsPoller(Paths.get(jobsDir), storage);
+        if (jobPattern != null) {
+            jenkinsPoller.jobPattern = Pattern.compile(jobPattern);
+        }
+
+        worker = new Worker();
         worker.start();
-        //jenkinsPoller.jobPattern = Pattern.compile("rhqe-jp8-ojdk8~rpms-el8z.ppc64le.*");
-        //jenkinsPoller.jobPattern = Pattern.compile("c~j~c-jp8-ojdk8~rpms-el8.aarch64-fastdebug.sdk-el8.aarch64.vagrant-x11.defaultgc.legacy.lnxagent.*");
+        timer = new Timer();
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -84,12 +115,17 @@ public class Runs extends HttpServlet {
     public void destroy() {
         timer.cancel();
         worker.shutdown();
+        timer = null;
+        worker = null;
+        jenkinsPoller = null;
+        storage = null;
+        initialPollDone = false;
     }
 
     private void printRunTable(PrintWriter out, String pkgName, String regex) {
         if (pkgName == null || pkgName.isEmpty()) {
             return;
-        }  
+        }
         Pkg pkg = storage.getPkg(pkgName);
         if (pkg == null) {
             out.println("Package not found: " + pkgName);
@@ -119,24 +155,29 @@ public class Runs extends HttpServlet {
                     out.println("RUNNING");
                     out.println("</span>");
                     break;
-                case Run.PASSED:
-                    out.println("<span class=\"rtxt-passed\">");
-                    out.println("PASSED");
+                case Run.SUCCESS:
+                    out.println("<span class=\"rtxt-success\">");
+                    out.println("SUCCESS");
                     out.println("</span>");
                     break;
-                case Run.FAILED:
-                    out.println("<span class=\"rtxt-failed\">");
-                    out.println("FAILED");
+                case Run.UNSTABLE:
+                    out.println("<span class=\"rtxt-unstable\">");
+                    out.println("UNSTABLE");
                     out.println("</span>");
                     break;
-                case Run.ERROR:
-                    out.println("<span class=\"rtxt-error\">");
-                    out.println("ERROR");
+                case Run.FAILURE:
+                    out.println("<span class=\"rtxt-failure\">");
+                    out.println("FAILURE");
                     out.println("</span>");
                     break;
-                case Run.CANCELED:
-                    out.println("<span class=\"rtxt-cancelled\">");
+                case Run.ABORTED:
+                    out.println("<span class=\"rtxt-aborted\">");
                     out.println("ABORTED");
+                    out.println("</span>");
+                    break;
+                case Run.NOT_BUILT:
+                    out.println("<span class=\"rtxt-aborted\">");
+                    out.println("NOT_BUILT");
                     out.println("</span>");
                     break;
                 case Run.FINISHED:
@@ -148,7 +189,7 @@ public class Runs extends HttpServlet {
             }
             out.println("</td>");
             out.println("<td>");
-            out.println("<a href=\"http://localhost:8080/job/" + fullName + "\">");
+            out.println("<a href=\"" + jenkinsUrl + "/job/" + fullName + "\">");
             out.println(fullName);
             out.println("</a>");
             out.println("</td>");
@@ -287,10 +328,10 @@ public class Runs extends HttpServlet {
             out.println("table { border: 1px solid; border-collapse: collapse; }");
             out.println("th, td { border: 1px solid; padding-left: 1em ; padding-right: 1em ; }");
             out.println("a { text-decoration: none; }");
-            out.println(".rtxt-passed { color: green; }");
-            out.println(".rtxt-failed { color: orangered; }");
-            out.println(".rtxt-error { color: purple; }");
-            out.println(".rtxt-cancelled { color: gray; }");
+            out.println(".rtxt-success { color: green; }");
+            out.println(".rtxt-unstable { color: orangered; }");
+            out.println(".rtxt-failure { color: purple; }");
+            out.println(".rtxt-aborted { color: gray; }");
             out.println(".rtxt-running { color: blue; }");
             out.println("</style>");
             out.println("</head>");

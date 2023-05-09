@@ -203,14 +203,15 @@ public class JenkinsPoller {
             if (resultStr != null) {
                 switch (resultStr.toUpperCase()) {
                     case "SUCCESS":
-                        return Run.PASSED;
+                        return Run.SUCCESS;
                     case "UNSTABLE":
-                        return Run.FAILED;
+                        return Run.UNSTABLE;
                     case "FAILURE":
-                        return Run.ERROR;
+                        return Run.FAILURE;
                     case "ABORTED":
+                        return Run.ABORTED;
                     case "NOT_BUILT":
-                        return Run.CANCELED;
+                        return Run.NOT_BUILT;
                 }
             }
         }

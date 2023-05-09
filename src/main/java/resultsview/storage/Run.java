@@ -33,10 +33,11 @@ public class Run  implements Comparable<Run> {
     public static final int UNKNOWN = 0;
     public static final int RUNNING = 1;
     public static final int FINISHED = 2;
-    public static final int PASSED = 3;
-    public static final int FAILED = 4;
-    public static final int ERROR = 5;
-    public static final int CANCELED = 6;
+    public static final int SUCCESS = 3;
+    public static final int UNSTABLE = 4;
+    public static final int FAILURE = 5;
+    public static final int ABORTED = 6;
+    public static final int NOT_BUILT = 7;
 
     public Run(Job job, String name) {
         this.job = job;
