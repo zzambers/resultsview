@@ -201,7 +201,7 @@ public class Runs extends HttpServlet {
     class Worker extends Thread {
 
         final Object lock = new Object();
-        final LinkedList<Task> tasks = new LinkedList();
+        final LinkedList<Task> tasks = new LinkedList<>();
         private boolean running = true;
 
         @Override

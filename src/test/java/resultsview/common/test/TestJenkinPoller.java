@@ -75,7 +75,7 @@ public class TestJenkinPoller {
 
     void writeConfigXml(Path dir) throws IOException {
         Path configxml = dir.resolve("config.xml");
-        List<String> lines = new ArrayList();
+        List<String> lines = new ArrayList<>();
         lines.add("<?xml version=\"1.1\" encoding=\"UTF-8\"?><project>");
         lines.add("    <actions/>");
         lines.add("    <description/>");
@@ -96,7 +96,7 @@ public class TestJenkinPoller {
 
     void writeBuildXml(Path dir, String nvr, String result) throws IOException {
         Path buildxml = dir.resolve("build.xml");
-        List<String> lines = new ArrayList();
+        List<String> lines = new ArrayList<>();
         lines.add("<?xml version='1.1' encoding='UTF-8'?>");
         lines.add("<build>");
         lines.add("  <actions>");
@@ -134,7 +134,7 @@ public class TestJenkinPoller {
         Path builds = job.resolve("builds");
         Files.createDirectories(builds);
 
-        List<String> lines = new ArrayList();
+        List<String> lines = new ArrayList<>();
         Path nextBuildFile = job.resolve("nextBuildNumber");
         lines.add("1");
         Files.write(nextBuildFile, lines, Charset.defaultCharset());
@@ -151,7 +151,7 @@ public class TestJenkinPoller {
         Path job = root.resolve(jobName);
         Path builds = job.resolve("builds");
 
-        List<String> lines = new ArrayList();
+        List<String> lines = new ArrayList<>();
         Path nextBuildFile = job.resolve("nextBuildNumber");
         Files.delete(nextBuildFile);
         lines.add(Integer.toString(buildId + 1));

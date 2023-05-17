@@ -33,11 +33,11 @@ import java.util.Collections;
 
 public class Storage implements StorageInterface {
 
-    Map<String, Job> jobs = new HashMap();
-    Map<Job, Set<Run>> jobsRuns = new HashMap();
+    Map<String, Job> jobs = new HashMap<>();
+    Map<Job, Set<Run>> jobsRuns = new HashMap<>();
 
-    Map<String, Pkg> pkgs = new HashMap();
-    Map<Pkg, Set<Run>> pkgsRuns = new HashMap();
+    Map<String, Pkg> pkgs = new HashMap<>();
+    Map<Pkg, Set<Run>> pkgsRuns = new HashMap<>();
     //Map<Job, Map<String, Run>> jobsRuns = new HashMap();
 
     @Override
@@ -52,24 +52,24 @@ public class Storage implements StorageInterface {
 
     @Override
     public Collection<Job> getJobs() {
-        return new ArrayList(jobs.values());
+        return new ArrayList<>(jobs.values());
     }
 
     @Override
     public Collection<Pkg> getPkgs() {
-        return new ArrayList(pkgs.values());
+        return new ArrayList<>(pkgs.values());
     }
 
     @Override
     public Collection<Run> getJobRuns(Job job) {
         HashSet<Run> runs = (HashSet<Run>) jobsRuns.get(job);
-        return runs != null ? (HashSet<Run>) runs.clone() : Collections.<Run>emptySet();
+        return runs != null ? new HashSet<Run>(runs) : Collections.<Run>emptySet();
     }
 
     @Override
     public Collection<Run> getPkgRuns(Pkg pkg) {
         HashSet<Run> runs = (HashSet<Run>) pkgsRuns.get(pkg);
-        return runs != null ? (HashSet<Run>) runs.clone() : Collections.<Run>emptySet();
+        return runs != null ? new HashSet<Run>(runs) : Collections.<Run>emptySet();
     }
 
     @Override
@@ -105,7 +105,7 @@ public class Storage implements StorageInterface {
         Job job = run.getJob();
         Set<Run> runs = jobsRuns.get(job);
         if (runs == null) {
-            runs = new HashSet();
+            runs = new HashSet<>();
             jobsRuns.put(job, runs);
         }
         if (!runs.contains(run)) {
@@ -117,7 +117,7 @@ public class Storage implements StorageInterface {
     public void addPkgRun(Pkg pkg, Run run) {
         Set<Run> runs = pkgsRuns.get(pkg);
         if (runs == null) {
-            runs = new HashSet();
+            runs = new HashSet<>();
             pkgsRuns.put(pkg, runs);
         }
         if (!runs.contains(run)) {

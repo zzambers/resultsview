@@ -30,7 +30,7 @@ import org.xml.sax.SAXException;
 
 public class TckResultsHandler extends SAXTreeHandler {
 
-    private final List<TestResult> results = new ArrayList();
+    private final List<TestResult> results = new ArrayList<>();
 
     public TckResultsHandler() {
         init();

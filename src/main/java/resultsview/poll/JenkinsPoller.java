@@ -51,10 +51,10 @@ public class JenkinsPoller {
     StorageInterface storage;
     public Pattern jobPattern = null;
 
-    Map<String, Job> knownJobsMap = new HashMap();
-    Map<Job, Run> latestKnownRunMap = new HashMap();
-    Map<String, String> runNameMap = new HashMap();
-    public Set<Run> runningSet = new HashSet();
+    Map<String, Job> knownJobsMap = new HashMap<>();
+    Map<Job, Run> latestKnownRunMap = new HashMap<>();
+    Map<String, String> runNameMap = new HashMap<>();
+    public Set<Run> runningSet = new HashSet<>();
 
     public long rootModifTime = Long.MIN_VALUE;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("[0-9]+");
@@ -65,7 +65,7 @@ public class JenkinsPoller {
     }
 
     public List<Path> listDirVerSorted(Path dir) throws IOException {
-        List<Path> list = new ArrayList();
+        List<Path> list = new ArrayList<>();
         try (DirectoryStream<Path> buildDirs = Files.newDirectoryStream(dir)) {
             for (Path entry : buildDirs) {
                 list.add(entry);
@@ -101,7 +101,7 @@ public class JenkinsPoller {
         long modifTime = Files.getLastModifiedTime(jobsRoot).toMillis();
         if (modifTime > rootModifTime) {
             rootModifTime = modifTime;
-            Set<String> foundJobNames = new HashSet();
+            Set<String> foundJobNames = new HashSet<>();
             try (DirectoryStream<Path> jobPaths = Files.newDirectoryStream(jobsRoot)) {
                 for (Path jobPath : jobPaths) {
                     String jobName = jobPath.getFileName().toString();
@@ -219,7 +219,7 @@ public class JenkinsPoller {
     }
 
     public void pollRunning() throws IOException {
-        Set<Run> finishedSet = new HashSet();
+        Set<Run> finishedSet = new HashSet<>();
         for (Run run : runningSet) {
             processRun(run);
             int status = run.getStatus();

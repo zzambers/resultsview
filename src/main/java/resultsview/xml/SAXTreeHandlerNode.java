@@ -30,7 +30,7 @@ import java.util.HashMap;
 public class SAXTreeHandlerNode {
 
     private final String name;
-    private final HashMap<String, SAXTreeHandlerNode> children = new HashMap();
+    private final HashMap<String, SAXTreeHandlerNode> children = new HashMap<>();
 
     public SAXTreeHandlerNode(String name) {
         this.name = name;

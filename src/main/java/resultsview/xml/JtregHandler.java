@@ -33,7 +33,7 @@ public class JtregHandler extends SAXTreeHandler {
     /*
     https://github.com/junit-team/junit5/blob/master/platform-tests/src/test/resources/jenkins-junit.xsd
      */
-    ArrayList<TestSuite> testSuites = new ArrayList();
+    ArrayList<TestSuite> testSuites = new ArrayList<>();
     TestSuite currentTestSuite = null;
     TestCase currentTestCase = null;
 
@@ -120,7 +120,7 @@ public class JtregHandler extends SAXTreeHandler {
         String disabled = null;
         String skipped = null;
 
-        ArrayList<TestCase> testCases = new ArrayList();
+        ArrayList<TestCase> testCases = new ArrayList<>();
 
         public ArrayList<TestCase> getTestCases() {
             return testCases;
