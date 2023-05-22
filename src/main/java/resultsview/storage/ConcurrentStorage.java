@@ -98,6 +98,17 @@ public class ConcurrentStorage extends Storage {
     }
 
     @Override
+    public int getPkgRunsCount(Pkg pkg) {
+        Lock rlock = lock.readLock();
+        rlock.lock();
+        try {
+            return super.getPkgRunsCount(pkg);
+        } finally {
+            rlock.unlock();
+        }
+    }
+
+    @Override
     public void removeJob(String name) {
         Lock wlock = lock.writeLock();
         wlock.lock();
@@ -149,6 +160,61 @@ public class ConcurrentStorage extends Storage {
             super.addPkgRun(pkg, run);
         } finally {
             wlock.unlock();
+        }
+    }
+
+    @Override
+    public Run getJobLatestRun(Job job) {
+        Lock rlock = lock.readLock();
+        rlock.lock();
+        try {
+            return super.getJobLatestRun(job);
+        } finally {
+            rlock.unlock();
+        }
+    }
+
+    @Override
+    public void setJobLatestRun(Job job, Run run) {
+        Lock wlock = lock.writeLock();
+        wlock.lock();
+        try {
+            super.setJobLatestRun(job, run);
+        } finally {
+            wlock.unlock();
+        }
+    }
+
+    @Override
+    public void addUnfinishedRun(Run run) {
+        Lock wlock = lock.writeLock();
+        wlock.lock();
+        try {
+            super.addUnfinishedRun(run);
+        } finally {
+            wlock.unlock();
+        }
+    }
+
+    @Override
+    public void removeUnfinishedRun(Run run) {
+        Lock wlock = lock.writeLock();
+        wlock.lock();
+        try {
+            super.removeUnfinishedRun(run);
+        } finally {
+            wlock.unlock();
+        }
+    }
+
+    @Override
+    public Collection<Run> getUnfinishedRuns() {
+        Lock rlock = lock.readLock();
+        rlock.lock();
+        try {
+            return super.getUnfinishedRuns();
+        } finally {
+            rlock.unlock();
         }
     }
 

@@ -22,8 +22,9 @@
  * THE SOFTWARE.
  */
 package resultsview.storage;
+import resultsview.common.VersionUtil;
 
-public class Pkg {
+public class Pkg implements Comparable<Pkg> {
 
     String strId;
 
@@ -57,6 +58,11 @@ public class Pkg {
     @Override
     public int hashCode() {
         return strId.hashCode();
+    }
+
+    @Override
+    public int compareTo(Pkg t) {
+        return VersionUtil.versionCompare(this.strId, t.strId);
     }
 
 }

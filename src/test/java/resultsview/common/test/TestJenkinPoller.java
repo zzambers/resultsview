@@ -243,8 +243,7 @@ public class TestJenkinPoller {
         Assert.assertTrue("More than zero new pkgs", storage.pkgctr > 0);
         Assert.assertTrue("More than zero new pkgsRuns", storage.pkgRunCtr > 0);
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
-        Set<Run> runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Thread.sleep(10);
 
 
@@ -254,8 +253,7 @@ public class TestJenkinPoller {
         storage.pkgRunCtr = 0;
         storage.rmJobCtr = 0;
         jenkins.poll();
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Assert.assertEquals("Zero new jobs", 0, storage.jobctr);
         Assert.assertEquals("Zero new runs", 0, storage.runctr);
         Assert.assertEquals("Zero new pkgs", 0, storage.pkgctr);
@@ -270,8 +268,7 @@ public class TestJenkinPoller {
         storage.rmJobCtr = 0;
         jenkins.rootModifTime = Long.MIN_VALUE;
         jenkins.poll();
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Assert.assertEquals("Zero new jobs", 0, storage.jobctr);
         Assert.assertEquals("Zero new runs", 0, storage.runctr);
         Assert.assertEquals("Zero new pkgs", 0, storage.pkgctr);
@@ -290,8 +287,7 @@ public class TestJenkinPoller {
         Assert.assertTrue("More than zero new pkgs", storage.pkgctr > 0);
         Assert.assertTrue("More than zero new pkgsRuns", storage.pkgRunCtr > 0);
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
-        Set<Run> runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Thread.sleep(10);
 
         createBuild(jenkinsJobs, "job4", 3, "pkg-1-3", "SUCCESS");
@@ -301,7 +297,7 @@ public class TestJenkinPoller {
         storage.pkgRunCtr = 0;
         storage.rmJobCtr = 0;
         jenkins.poll();
-        Assert.assertEquals("Correct number of runs in running set", 1, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 1, storage.getUnfinishedRuns().size());
         Assert.assertEquals("Zero new jobs", 0, storage.jobctr);
         Assert.assertEquals("Zero new runs", 0, storage.runctr);
         Assert.assertEquals("Zero new pkgs", 0, storage.pkgctr);
@@ -319,7 +315,7 @@ public class TestJenkinPoller {
         storage.pkgRunCtr = 0;
         storage.rmJobCtr = 0;
         jenkins.poll();
-        Assert.assertEquals("Correct number of runs in running set", 0, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 0, storage.getUnfinishedRuns().size());
         Assert.assertEquals("Zero new jobs", 0, storage.jobctr);
         Assert.assertEquals("Zero new runs", 0, storage.runctr);
         Assert.assertEquals("Zero new pkgs", 0, storage.pkgctr);
@@ -340,8 +336,7 @@ public class TestJenkinPoller {
         Assert.assertTrue("More than zero new pkgs", storage.pkgctr > 0);
         Assert.assertTrue("More than zero new pkgsRuns", storage.pkgRunCtr > 0);
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
-        Set<Run> runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Collection<Job> jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 4, jobs.size());
         Pkg pkg1 = storage.getPkg("pkg-1-1");
@@ -363,8 +358,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Removed job", 1, storage.rmJobCtr);
         jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 3, jobs.size());
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Collection<Run> runsPkg1 = storage.getPkgRuns(pkg1);
         Assert.assertEquals("Correct number of runs for pkg1", 1, runsPkg1.size());
         Collection<Run> runsPkg2 = storage.getPkgRuns(pkg2);
@@ -387,8 +381,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Removed job", 1, storage.rmJobCtr);
         jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 2, jobs.size());
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 1, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 1, storage.getUnfinishedRuns().size());
         runsPkg1 = storage.getPkgRuns(pkg1);
         Assert.assertEquals("Correct number of runs for pkg1", 1, runsPkg1.size());
         runsPkg2 = storage.getPkgRuns(pkg2);
@@ -411,8 +404,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Removed job", 1, storage.rmJobCtr);
         jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 1, jobs.size());
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 1, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 1, storage.getUnfinishedRuns().size());
         runsPkg1 = storage.getPkgRuns(pkg1);
         Assert.assertEquals("Correct number of runs for pkg1", 0, runsPkg1.size());
         runsPkg2 = storage.getPkgRuns(pkg2);
@@ -435,8 +427,7 @@ public class TestJenkinPoller {
         Assert.assertEquals("Removed job", 1, storage.rmJobCtr);
         jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 0, jobs.size());
-        runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 0, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 0, storage.getUnfinishedRuns().size());
         runsPkg1 = storage.getPkgRuns(pkg1);
         Assert.assertEquals("Correct number of runs for pkg1", 0, runsPkg1.size());
         runsPkg2 = storage.getPkgRuns(pkg2);
@@ -455,8 +446,7 @@ public class TestJenkinPoller {
         Assert.assertTrue("More than zero new pkgs", storage.pkgctr > 0);
         Assert.assertTrue("More than zero new pkgsRuns", storage.pkgRunCtr > 0);
         Assert.assertEquals("Zero removed jobs", 0, storage.rmJobCtr);
-        Set<Run> runningSet = jenkins.runningSet;
-        Assert.assertEquals("Correct number of runs in running set", 2, runningSet.size());
+        Assert.assertEquals("Correct number of runs in running set", 2, storage.getUnfinishedRuns().size());
         Collection<Job> jobs = storage.getJobs();
         Assert.assertEquals("Correct number of jobs", 4, jobs.size());
         Thread.sleep(10);

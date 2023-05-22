@@ -34,11 +34,13 @@ import java.util.Collections;
 public class Storage implements StorageInterface {
 
     Map<String, Job> jobs = new HashMap<>();
-    Map<Job, Set<Run>> jobsRuns = new HashMap<>();
+    Map<Job, Set<Run>> jobsRuns = new HashMap<>(); // runs for given job
 
     Map<String, Pkg> pkgs = new HashMap<>();
-    Map<Pkg, Set<Run>> pkgsRuns = new HashMap<>();
-    //Map<Job, Map<String, Run>> jobsRuns = new HashMap();
+    Map<Pkg, Set<Run>> pkgsRuns = new HashMap<>(); // runs for given pkg
+
+    Map<Job, Run> jobsLatestRun = new HashMap<>(); // latest run for given job
+    Set<Run> unfinishedRuns = new HashSet<>();
 
     @Override
     public Job getJob(String name) {
@@ -62,19 +64,26 @@ public class Storage implements StorageInterface {
 
     @Override
     public Collection<Run> getJobRuns(Job job) {
-        HashSet<Run> runs = (HashSet<Run>) jobsRuns.get(job);
+        Set<Run> runs = jobsRuns.get(job);
         return runs != null ? new HashSet<Run>(runs) : Collections.<Run>emptySet();
     }
 
     @Override
     public Collection<Run> getPkgRuns(Pkg pkg) {
-        HashSet<Run> runs = (HashSet<Run>) pkgsRuns.get(pkg);
+        Set<Run> runs = pkgsRuns.get(pkg);
         return runs != null ? new HashSet<Run>(runs) : Collections.<Run>emptySet();
+    }
+
+    @Override
+    public int getPkgRunsCount(Pkg pkg) {
+        Set<Run> runs = pkgsRuns.get(pkg);
+        return runs == null ? 0 : runs.size();
     }
 
     @Override
     public void removeJob(String name) {
         Job removedJob = jobs.remove(name);
+        jobsLatestRun.remove(removedJob);
         Set<Run> removedRuns = jobsRuns.remove(removedJob);
         if (removedRuns != null) {
             for (Run run : removedRuns) {
@@ -84,6 +93,7 @@ public class Storage implements StorageInterface {
                         pkgRuns.remove(run);
                     }
                 }
+                unfinishedRuns.remove(run);
             }
         }
     }
@@ -123,6 +133,31 @@ public class Storage implements StorageInterface {
         if (!runs.contains(run)) {
             runs.add(run);
         }
+    }
+
+    @Override
+    public Run getJobLatestRun(Job job) {
+        return jobsLatestRun.get(job);
+    }
+
+    @Override
+    public void setJobLatestRun(Job job, Run run) {
+        jobsLatestRun.put(job, run);
+    }
+
+    @Override
+    public void addUnfinishedRun(Run run) {
+        unfinishedRuns.add(run);
+    }
+
+    @Override
+    public void removeUnfinishedRun(Run run) {
+        unfinishedRuns.remove(run);
+    }
+
+    @Override
+    public Collection<Run> getUnfinishedRuns() {
+        return new HashSet<Run>(unfinishedRuns);
     }
 
 }

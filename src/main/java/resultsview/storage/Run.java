@@ -23,6 +23,8 @@
  */
 package resultsview.storage;
 
+import resultsview.common.VersionUtil;
+
 public class Run  implements Comparable<Run> {
 
     final Job job;
@@ -60,6 +62,19 @@ public class Run  implements Comparable<Run> {
         this.status = status;
     }
 
+    public boolean isFinished() {
+        switch(status) {
+            case FINISHED:
+            case SUCCESS:
+            case UNSTABLE:
+            case FAILURE:
+            case ABORTED:
+            case NOT_BUILT:
+                return true;
+        }
+        return false;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -86,7 +101,7 @@ public class Run  implements Comparable<Run> {
     @Override
     public int compareTo(Run t) {
         int res = job.compareTo(t.job);
-        return res != 0 ? res : name.compareTo(t.name);
+        return res != 0 ? res : VersionUtil.versionCompare(this.name, t.name);
     }
 
 }

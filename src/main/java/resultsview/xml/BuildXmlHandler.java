@@ -45,6 +45,7 @@ public class BuildXmlHandler extends SAXTreeHandler {
     private void init() {
         SAXTreeHandlerNode rootNode = new SAXTreeHandlerNode(null);
         SAXTreeHandlerNode buildNode = new SAXTreeHandlerNode("build");
+        SAXTreeHandlerNode matrixBuildNode = new SAXTreeHandlerNode("matrix-build");
         SAXTreeHandlerNode actionsNode = new SAXTreeHandlerNode("actions");
         SAXTreeHandlerNode kojiNode = new SAXTreeHandlerNode("hudson.plugins.scm.koji.KojiRevisionState");
         SAXTreeHandlerNode buildNode2 = new SAXTreeHandlerNode("build");
@@ -114,6 +115,7 @@ public class BuildXmlHandler extends SAXTreeHandler {
 
         };
         rootNode.addChild(buildNode.getName(), buildNode);
+        rootNode.addChild(matrixBuildNode.getName(), matrixBuildNode);
         buildNode.addChild(actionsNode.getName(), actionsNode);
         actionsNode.addChild(kojiNode.getName(), kojiNode);
         kojiNode.addChild(buildNode2.getName(), buildNode2);
@@ -126,6 +128,12 @@ public class BuildXmlHandler extends SAXTreeHandler {
         buildNode.addChild(startTimeNode);
         buildNode.addChild(durationNode);
         buildNode.addChild(buildOnNode);
+
+        matrixBuildNode.addChild(resultNode);
+        matrixBuildNode.addChild(timestampNode);
+        matrixBuildNode.addChild(startTimeNode);
+        matrixBuildNode.addChild(durationNode);
+        matrixBuildNode.addChild(buildOnNode);
 
         setRootNode(rootNode);
     }

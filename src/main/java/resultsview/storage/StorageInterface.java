@@ -39,6 +39,8 @@ public interface StorageInterface {
 
     public Collection<Run> getPkgRuns(Pkg pkg);
 
+    public int getPkgRunsCount(Pkg pkg);
+
     public void removeJob(String name);
 
     public void storeJob(Job job);
@@ -49,4 +51,13 @@ public interface StorageInterface {
 
     public void addPkgRun(Pkg pkg, Run run);
 
+    public Run getJobLatestRun(Job job);
+
+    public void setJobLatestRun(Job job, Run run);
+
+    public void addUnfinishedRun(Run run);
+
+    public void removeUnfinishedRun(Run run);
+
+    public Collection<Run> getUnfinishedRuns();
 }

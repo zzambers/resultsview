@@ -51,10 +51,7 @@ public class JenkinsPoller {
     StorageInterface storage;
     public Pattern jobPattern = null;
 
-    Map<String, Job> knownJobsMap = new HashMap<>();
-    Map<Job, Run> latestKnownRunMap = new HashMap<>();
     Map<String, String> runNameMap = new HashMap<>();
-    public Set<Run> runningSet = new HashSet<>();
 
     public long rootModifTime = Long.MIN_VALUE;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("[0-9]+");
@@ -115,7 +112,6 @@ public class JenkinsPoller {
                             && Files.exists(jobPath.resolve("config.xml"))) {
                         job = new Job(jobName);
                         storage.storeJob(job);
-                        // knownJobsMap.put(jobName, job);
                     }
                 }
             }
@@ -126,7 +122,7 @@ public class JenkinsPoller {
                 }
             }
         } else {
-            System.out.println("Skipped poll: modifTime: " + modifTime + " rootModifTime: " + rootModifTime);
+            // System.out.println("Skipped poll: modifTime: " + modifTime + " rootModifTime: " + rootModifTime);
         }
         for (Job job : getJobs()) {
             pollNewRuns(job);
@@ -139,7 +135,7 @@ public class JenkinsPoller {
         if (!Files.exists(buildsDir)) {
             return;
         }
-        Run latestKnownRun = latestKnownRunMap.get(job);
+        Run latestKnownRun = storage.getJobLatestRun(job);
         //Path nextBuildFile = jobDir.resolve("nextBuildNumber");
         long modifTime = Files.getLastModifiedTime(buildsDir).toMillis();
         if (modifTime > job.modifTime || latestKnownRun == null) {
@@ -166,10 +162,10 @@ public class JenkinsPoller {
                             Run run = new Run(job, buildId);
                             processRun(run);
                             storage.storeRun(run);
-                            latestKnownRunMap.put(job, run);
+                            storage.setJobLatestRun(job, run);
                             int status = run.getStatus();
                             if (status == Run.RUNNING) {
-                                runningSet.add(run);
+                                storage.addUnfinishedRun(run);
                             }
                         }
                     }
@@ -219,16 +215,12 @@ public class JenkinsPoller {
     }
 
     public void pollRunning() throws IOException {
-        Set<Run> finishedSet = new HashSet<>();
-        for (Run run : runningSet) {
+        for (Run run : storage.getUnfinishedRuns()) {
             processRun(run);
             int status = run.getStatus();
             if (status != Run.RUNNING) {
-                finishedSet.add(run);
+                storage.removeUnfinishedRun(run);
             }
-        }
-        for (Run run : finishedSet) {
-            runningSet.remove(run);
         }
     }
 
@@ -269,28 +261,17 @@ public class JenkinsPoller {
 
     Job getJob(String name) {
         return storage.getJob(name);
-        //return knownJobsMap.get(name);
     }
 
     Iterable<Job> getJobs() {
         return storage.getJobs();
-        //return knownJobsMap.values();
-    }
-
-    Run getLatestKnownRun(Job job) {
-        return latestKnownRunMap.get(job);
     }
 
     void removeJob(String name) {
-        //Job removedJob = knownJobsMap.remove(name);
         Job removedJob = storage.getJob(name);
         if (removedJob == null) {
             return;
         }
-        for (Run run : storage.getJobRuns(removedJob)) {
-            runningSet.remove(run);
-        }
-        latestKnownRunMap.remove(removedJob);
         storage.removeJob(name);
     }
 
