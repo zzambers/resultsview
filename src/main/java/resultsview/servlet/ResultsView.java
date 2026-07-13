@@ -28,8 +28,10 @@ import java.io.PrintWriter;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Timer;
@@ -59,6 +61,7 @@ public class ResultsView extends HttpServlet {
     private JenkinsPoller jenkinsPoller;
     private Timer timer;
     private volatile boolean initialPollDone = false;
+    private SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -174,6 +177,10 @@ public class ResultsView extends HttpServlet {
         }
     }
 
+    private String getFormatedDate(long date) {
+        return dateFormater.format(new Date(date));
+    }
+
     private void printRunTable(PrintWriter out, String pkgName, String regex) {
         if (pkgName == null || pkgName.isEmpty()) {
             return;
@@ -189,6 +196,7 @@ public class ResultsView extends HttpServlet {
         out.println("<tr>");
         out.println("<th>Result</th>");
         out.println("<th>Name</th>");
+        out.println("<th>Time</th>");
         out.println("</tr>");
         Pattern p = (regex == null || regex.isEmpty()) ? null : Pattern.compile(regex);
         for (Run run : runs) {
@@ -207,6 +215,9 @@ public class ResultsView extends HttpServlet {
             out.println("<a href=\"" + jenkinsUrl + "/job/" + urlEscape(jobName) + "/" + urlEscape(runName) + "\">");
             out.println(htmlEscape(fullName));
             out.println("</a>");
+            out.println("</td>");
+            out.println("<td>");
+            out.println(getFormatedDate(run.getStartTime()));
             out.println("</td>");
             out.println("</tr>");
         }
@@ -244,6 +255,7 @@ public class ResultsView extends HttpServlet {
         out.println("<tr>");
         out.println("<th>Last Result</th>");
         out.println("<th>Name</th>");
+        out.println("<th>Last Time</th>");
         out.println("</tr>");
         String regex = patternVal;
         Pattern p = (regex == null || regex.isEmpty()) ? null : Pattern.compile(regex);
@@ -252,32 +264,44 @@ public class ResultsView extends HttpServlet {
             if (p != null && !p.matcher(jobName).find()) {
                 continue;
             }
-            out.println("<tr>");
-            out.println("<td>");
+
             Run run = storage.getJobLatestRun(job);
-            if (run != null && run.isFinished()) {
-                printStatus(out, run.getStatus());
-            } else {
+            boolean running = false;;
+            if (run != null && !run.isFinished()) {
+                // last run has not finished -> get last finished
                 List<Run> runs = new ArrayList<Run>(storage.getJobRuns(job));
                 int runIdx = runs.size() - 1;
                 if (runIdx >= 0) {
                     Collections.sort(runs);
-                    Run lastrun = runs.get(runIdx);
-                    if (!lastrun.isFinished()) {
+                    run = runs.get(runIdx);
+                    if (!run.isFinished()) {
                         if (runIdx > 0) {
                             --runIdx;
                         }
-                        lastrun = runs.get(runIdx);
+                        run = runs.get(runIdx);
                     }
-                    printStatus(out, lastrun.getStatus());
-                    out.println("&gt;");
+                    running = true;
                 }
+            }
+
+            out.println("<tr>");
+            out.println("<td>");
+            if (run != null) {
+                printStatus(out, run.getStatus());
+            }
+            if (running) {
+                out.println("&gt;");
             }
             out.println("</td>");
             out.println("<td>");
             out.println("<a href=\"" + jenkinsUrl + "/job/" + urlEscape(jobName) + "\">");
             out.println(htmlEscape(jobName));
             out.println("</a>");
+            out.println("</td>");
+            out.println("<td>");
+            if (run != null) {
+                out.println(getFormatedDate(run.getStartTime()));
+            }
             out.println("</td>");
             out.println("</tr>");
         }

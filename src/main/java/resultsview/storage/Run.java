@@ -31,6 +31,7 @@ public class Run  implements Comparable<Run> {
     final String name;
     int status;
     public long modifTime = Long.MIN_VALUE;
+    public long startTime;
 
     public static final int UNKNOWN = 0;
     public static final int RUNNING = 1;
@@ -60,6 +61,14 @@ public class Run  implements Comparable<Run> {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
     }
 
     public boolean isFinished() {

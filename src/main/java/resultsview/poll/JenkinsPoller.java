@@ -238,6 +238,11 @@ public class JenkinsPoller {
                 BuildXmlHandler handler = parseBuildXml(buildXml);
                 if (handler != null) {
                     status = getStatus(handler);
+                    String startTimeStr = handler.getStartTime();
+                    try {
+                        long startTime = Long.valueOf(startTimeStr);
+                        run.setStartTime(startTime);
+                    } catch (NumberFormatException e) { /* ignored */ }
                     String pkgName = handler.getPkgName();
                     String pkgVersion = handler.getPkgVersion();
                     String pkgRelease = handler.getPkgRelease();

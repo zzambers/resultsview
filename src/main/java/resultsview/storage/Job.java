@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 package resultsview.storage;
+import resultsview.common.VersionUtil;
 
 public class Job implements Comparable<Job> {
 
@@ -57,7 +58,7 @@ public class Job implements Comparable<Job> {
 
     @Override
     public int compareTo(Job t) {
-        return name.compareTo(t.name);
+        return VersionUtil.versionCompare(this.name, t.name);
     }
 
 }
