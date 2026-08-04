@@ -691,7 +691,7 @@ public class McpHandler {
                     continue;
                 }
             }
-            line = line.replaceAll("\\033\\[[0-9]+m", ""); // remove ansi collors
+            line = line.replaceAll("\\033\\[[0-9;]+m", ""); // remove ansi colors
             if (pattern != null && !pattern.matcher(line).find()) {
                 continue;
             }
