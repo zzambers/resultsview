@@ -136,7 +136,7 @@ public class McpHandler {
     void jobsToolDescr(ArrayNode tools) {
         JsonNode tool = mapper.createObjectNode()
             .put("name", "jobs")
-            .put("description", "Gets list of test jobs, as MD table")
+            .put("description", "Gets list of test jobs, as MD table (can be long)")
             .set("inputSchema", mapper.createObjectNode()
                 .put("type", "object")
                 .set("properties", mapper.createObjectNode()
@@ -185,7 +185,13 @@ public class McpHandler {
             .put("name", "pkgs")
             .put("description", "Gets list of tested packages (builds), as MD table")
             .set("inputSchema", mapper.createObjectNode()
-                .put("type", "object"));
+                .put("type", "object")
+                .set("properties", mapper.createObjectNode()
+                    .set("pattern", mapper.createObjectNode()
+                        .put("type", "string")
+                        .put("description", "Limits listed packages to ones, whose name matches regex pattern (java style)")
+                    )
+                ));
         tools.add(tool);
     }
 
@@ -193,9 +199,18 @@ public class McpHandler {
         StringBuilder sb = new StringBuilder();
         List<Pkg> pkgs = new ArrayList<Pkg>(storage.getPkgs());
         Collections.sort(pkgs);
+        String patternStr = getRequestArgument(request, "pattern");
+        Pattern pattern = null;
+        if (patternStr != null) {
+            pattern = Pattern.compile(patternStr);
+        }
         sb.append("| PKG | RUNS COUNT |\n");
         sb.append("| --- | --- |\n");
         for (Pkg pkg : pkgs) {
+            String pkgName = pkg.getStrId();
+            if (pattern != null && !pattern.matcher(pkgName).find()) {
+                continue;
+            }
             sb.append("| ");
             sb.append(pkg.getStrId());
             sb.append(" | ");
@@ -219,7 +234,7 @@ public class McpHandler {
                     ))
                     .set("limit", mapper.createObjectNode()
                         .put("type", "string")
-                        .put("description", "limits number of listed runs (default is no limit)")
+                        .put("description", "limits listed runs to given number of most recent ones (default is no limit)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -277,10 +292,18 @@ public class McpHandler {
             .put("description", "Gets list of testsuite runs for specific package (build), as MD table")
             .set("inputSchema", ((ObjectNode) mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("pkg", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "name of package for which to list testsuite runs")
+                    ))
+                    .set("job-pattern", mapper.createObjectNode()
+                        .put("type", "string")
+                        .put("description", "Limits runs to those, whose job name matches regex pattern (java style)")
+                    ))
+                    .set("unsuccessful-only", mapper.createObjectNode()
+                        .put("type", "string")
+                        .put("description", "Only lists runs whose result is not SUCCESS, true or false (default false)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -300,19 +323,32 @@ public class McpHandler {
             addTextContent(resultContent, "Pkg not found: " + pkgName);
             return;
         }
+        String patternStr = getRequestArgument(request, "job-pattern");
+        Pattern pattern = null;
+        if (patternStr != null) {
+            pattern = Pattern.compile(patternStr);
+        }
+        boolean unsuccessful = getRequestArgumentBoolean(request, "unsuccessful-only", false);
         StringBuilder sb = new StringBuilder();
         List<Run> runs = new ArrayList<Run>(storage.getPkgRuns(pkg));
         Collections.sort(runs);
         sb.append("| RUN | STATUS | DATE |\n");
         sb.append("| --- | --- | --- |\n");
         for (Run run : runs) {
-            String status = getStatusString(run.getStatus());
+            String jobName = run.getJob().getName();
+            if (pattern != null && !pattern.matcher(jobName).find()) {
+                continue;
+            }
+            int status = run.getStatus();
+            if (unsuccessful && status == Run.SUCCESS) {
+                continue;
+            }
             sb.append("| ");
-            sb.append(run.getJob().getName());
+            sb.append(jobName);
             sb.append("/");
             sb.append(run.getName());
             sb.append(" | ");
-            sb.append(status);
+            sb.append(getStatusString(status));
             sb.append(" | ");
             sb.append(getFormatedDate(run.getStartTime()));
             sb.append(" |\n");
