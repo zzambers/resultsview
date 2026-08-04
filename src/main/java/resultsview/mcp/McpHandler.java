@@ -364,7 +364,7 @@ public class McpHandler {
         }
         JsonNode resultsNode = mapper.readTree(resultsFile.toFile());
         StringBuilder sb = new StringBuilder();
-        sb.append("pkg: " + run.getPkg() + "\n");
+        sb.append("pkg: " + run.getPkg().getStrId() + "\n");
         sb.append("# test groups\n");
         for (JsonNode testGroupNode : resultsNode) {
             String groupName = testGroupNode.path("name").asText();
