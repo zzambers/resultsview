@@ -53,6 +53,20 @@ public class Storage implements StorageInterface {
     }
 
     @Override
+    public Run getRun(String jobName, String runId) {
+        Job job = getJob(jobName);
+        if (job == null) {
+            return null;
+        }
+        for (Run run : getJobRuns(job)) {
+            if (run.getName().equals(runId)) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    @Override
     public Collection<Job> getJobs() {
         return new ArrayList<>(jobs.values());
     }
@@ -138,6 +152,26 @@ public class Storage implements StorageInterface {
     @Override
     public Run getJobLatestRun(Job job) {
         return jobsLatestRun.get(job);
+    }
+
+    @Override
+    public Run getLatestFinishedRun(Job job) {
+        Run run = getJobLatestRun(job);
+        if (run != null && !run.isFinished()) {
+            ArrayList<Run> runs = new ArrayList<Run>(getJobRuns(job));
+            int runIdx = runs.size() - 1;
+            if (runIdx >= 0) {
+                Collections.sort(runs);
+                run = runs.get(runIdx);
+                if (!run.isFinished()) {
+                    if (runIdx > 0) {
+                        --runIdx;
+                    }
+                    run = runs.get(runIdx);
+                }
+            }
+        }
+        return run;
     }
 
     @Override

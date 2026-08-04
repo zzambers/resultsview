@@ -54,6 +54,17 @@ public class ConcurrentStorage extends Storage {
     }
 
     @Override
+    public Run getRun(String jobName, String runId) {
+        Lock rlock = lock.readLock();
+        rlock.lock();
+        try {
+            return super.getRun(jobName, runId);
+        } finally {
+            rlock.unlock();
+        }
+    }
+
+    @Override
     public Collection<Job> getJobs() {
         Lock rlock = lock.readLock();
         rlock.lock();
@@ -169,6 +180,17 @@ public class ConcurrentStorage extends Storage {
         rlock.lock();
         try {
             return super.getJobLatestRun(job);
+        } finally {
+            rlock.unlock();
+        }
+    }
+
+    @Override
+    public Run getLatestFinishedRun(Job job) {
+        Lock rlock = lock.readLock();
+        rlock.lock();
+        try {
+            return super.getLatestFinishedRun(job);
         } finally {
             rlock.unlock();
         }

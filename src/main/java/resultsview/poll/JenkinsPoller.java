@@ -254,6 +254,7 @@ public class JenkinsPoller {
                             pkg = new Pkg(nvr);
                             storage.storePkg(pkg);
                         }
+                        run.setPkg(pkg);
                         storage.addPkgRun(pkg, run);
                     }
                 }

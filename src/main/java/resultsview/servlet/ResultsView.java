@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import resultsview.mcp.McpHandler;
 import resultsview.poll.JenkinsPoller;
 import resultsview.storage.ConcurrentStorage;
 import resultsview.storage.Pkg;
@@ -62,6 +64,7 @@ public class ResultsView extends HttpServlet {
     private Timer timer;
     private volatile boolean initialPollDone = false;
     private SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private McpHandler mcpHandler;
 
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -85,7 +88,9 @@ public class ResultsView extends HttpServlet {
         }
 
         storage = new ConcurrentStorage();
-        jenkinsPoller = new JenkinsPoller(Paths.get(jobsDir), storage);
+        Path jobsRoot = Paths.get(jobsDir);
+        mcpHandler = new McpHandler(storage, jobsRoot, jenkinsUrl);
+        jenkinsPoller = new JenkinsPoller(jobsRoot, storage);
         if (jobPattern != null) {
             jenkinsPoller.jobPattern = Pattern.compile(jobPattern);
         }
@@ -109,6 +114,7 @@ public class ResultsView extends HttpServlet {
         timer = null;
         jenkinsPoller = null;
         storage = null;
+        mcpHandler = null;
         initialPollDone = false;
     }
 
@@ -264,32 +270,14 @@ public class ResultsView extends HttpServlet {
             if (p != null && !p.matcher(jobName).find()) {
                 continue;
             }
-
             Run run = storage.getJobLatestRun(job);
-            boolean running = false;;
-            if (run != null && !run.isFinished()) {
-                // last run has not finished -> get last finished
-                List<Run> runs = new ArrayList<Run>(storage.getJobRuns(job));
-                int runIdx = runs.size() - 1;
-                if (runIdx >= 0) {
-                    Collections.sort(runs);
-                    run = runs.get(runIdx);
-                    if (!run.isFinished()) {
-                        if (runIdx > 0) {
-                            --runIdx;
-                        }
-                        run = runs.get(runIdx);
-                    }
-                    running = true;
-                }
-            }
-
+            Run finishedRun = storage.getLatestFinishedRun(job);
             out.println("<tr>");
             out.println("<td>");
             if (run != null) {
-                printStatus(out, run.getStatus());
+                printStatus(out, finishedRun.getStatus());
             }
-            if (running) {
+            if (run != null && run != finishedRun) {
                 out.println("&gt;");
             }
             out.println("</td>");
@@ -364,8 +352,14 @@ public class ResultsView extends HttpServlet {
      */
     protected void processRequest(final HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        String servletPath = request.getServletPath();
+        if (servletPath.equals("/mcp")) {
+            mcpHandler.processRequest(request, response);
+            return;
+        }
         response.setContentType("text/html;charset=UTF-8");
         try (final PrintWriter out = response.getWriter()) {
+
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
@@ -389,7 +383,6 @@ public class ResultsView extends HttpServlet {
             out.println("<body>");
             out.println("<div>");
             out.println("<div style=\"text-align: center; background-color: Silver;\">");
-            String servletPath = request.getServletPath();
             printPageTab(out, "pkgs", servletPath.equals("/pkgs"));
             printPageTab(out, "jobs", servletPath.equals("/jobs"));
             printPageTab(out, "runs", servletPath.equals("/runs"));

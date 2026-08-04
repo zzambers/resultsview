@@ -31,6 +31,8 @@ public interface StorageInterface {
 
     public Pkg getPkg(String name);
 
+    public Run getRun(String jobName, String runId);
+
     public Collection<Job> getJobs();
 
     public Collection<Pkg> getPkgs();
@@ -54,6 +56,8 @@ public interface StorageInterface {
     public Run getJobLatestRun(Job job);
 
     public void setJobLatestRun(Job job, Run run);
+
+    public Run getLatestFinishedRun(Job job);
 
     public void addUnfinishedRun(Run run);
 

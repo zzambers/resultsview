@@ -29,6 +29,7 @@ public class Run  implements Comparable<Run> {
 
     final Job job;
     final String name;
+    volatile Pkg pkg;
     int status;
     public long modifTime = Long.MIN_VALUE;
     public long startTime;
@@ -53,6 +54,14 @@ public class Run  implements Comparable<Run> {
 
     public String getName() {
         return name;
+    }
+
+    public Pkg getPkg() {
+        return pkg;
+    }
+
+    public void setPkg(Pkg pkg) {
+        this.pkg = pkg;
     }
 
     public int getStatus() {
