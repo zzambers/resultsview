@@ -363,10 +363,14 @@ public class McpHandler {
             .put("description", "Gets testsuites results summary for run")
             .set("inputSchema", ((ObjectNode) mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", mapper.createObjectNode()
+                .set("properties", ((ObjectNode) mapper.createObjectNode()
                     .set("run", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "name of run for which get tests summary for (run name has form: JOB_NAME/RUN_ID)")
+                    ))
+                    .set("group", mapper.createObjectNode()
+                        .put("type", "string")
+                        .put("description", "Only shows summary for specified test group (by default summary for all groups is shown)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -398,28 +402,34 @@ public class McpHandler {
             addTextContent(resultContent, "No test results found for: " + runName);
             return;
         }
+        String groupArg = getRequestArgument(request, "group");
         JsonNode resultsNode = mapper.readTree(resultsFile.toFile());
         StringBuilder sb = new StringBuilder();
         sb.append("pkg: " + run.getPkg().getStrId() + "\n");
-        sb.append("# test groups\n");
+        sb.append("# overview\n");
+        sb.append("| TEST_GROUP | PASSED | FAILED | ERROR | NOT_RAN | TOTAL |\n");
+        sb.append("| --- | --- | --- | --- | --- | --- |\n");
         for (JsonNode testGroupNode : resultsNode) {
             String groupName = testGroupNode.path("name").asText();
-            sb.append("## " + groupName + "\n");
+            if (groupArg != null && !groupArg.equals(groupName)) {
+                continue;
+            }
             JsonNode report = testGroupNode.path("report");
             String passed = report.path("testsPassed").asText();
             String notRun = report.path("testsNotRun").asText();
             String failed = report.path("testsFailed").asText();
             String error = report.path("testsError").asText();
             String total = report.path("testsTotal").asText();
-            sb.append("### tests overview\n");
-            sb.append("| STATUS | COUNT |\n");
-            sb.append("| --- | --- |\n");
-            sb.append("| PASSED | " + passed + " |\n");
-            sb.append("| NOT RUN | " + notRun + " |\n");
-            sb.append("| FAILED | " + failed + " |\n");
-            sb.append("| ERROR | " + error + " |\n");
-            sb.append("| TOTAL | " + total + " |\n");
-            sb.append("### tests problems\n");
+            sb.append("| " + groupName + " | " + passed + " | " + failed + " | " + error + " | " + notRun + " | " + total + "|\n");
+        }
+        sb.append("# test problems\n");
+        for (JsonNode testGroupNode : resultsNode) {
+            String groupName = testGroupNode.path("name").asText();
+            if (groupArg != null && !groupArg.equals(groupName)) {
+                continue;
+            }
+            sb.append("## " + groupName + "\n");
+            JsonNode report = testGroupNode.path("report");
             sb.append("| NAME | STATUS | STATUS LINE |\n");
             sb.append("| --- | --- | --- |\n");
             for (JsonNode problemNode : report.path("testProblems")) {
