@@ -47,6 +47,8 @@ public class McpHandler {
 
     static final ObjectMapper mapper = new ObjectMapper();
 
+    private static final int DEFAULT_PAGE_SIZE = 100;
+
     public McpHandler(Storage storage, Path jobsRoot, String jenkinsUrl) {
         this.storage = storage;
         this.jobsRoot = jobsRoot;
@@ -139,30 +141,50 @@ public class McpHandler {
             .put("description", "Gets list of test jobs, as MD table (can be long)")
             .set("inputSchema", mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("pattern", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "Limits jobs to ones, whose name matches regex pattern (java style)")
+                    ))
+                    .set("page-size", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Sets (max) number of items per page (default " + DEFAULT_PAGE_SIZE + ")")
+                    ))
+                    .set("page", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Page index to show (1-bassed indexing; default 1)")
                     )
                 ));
         tools.add(tool);
     }
 
     void jobsToolImpl(JsonNode request, ArrayNode resultContent) {
-        Pattern p = null;
-        String patternStr = getRequestArgument(request, "pattern");
-        if (patternStr != null && !patternStr.isEmpty()) {
-            p = Pattern.compile(patternStr);
-        }
-        StringBuilder sb = new StringBuilder();
         List<Job> jobs = new ArrayList<Job>(storage.getJobs());
+        String patternStr = getRequestArgument(request, "pattern");
+        final Pattern p = createPattern(patternStr);
+        if (p != null) {
+            jobs.removeIf((job) -> !p.matcher(job.getName()).find());
+        }
+        int pageSize = getRequestArgumentInt(request, "page-size", DEFAULT_PAGE_SIZE);
+        int page = getRequestArgumentInt(request, "page", 1);
+        int itemsTotal = jobs.size();
+        if (itemsTotal == 0) {
+            addTextContent(resultContent, "No (matching) jobs found");
+            return;
+        }
+        int pagesTotal = (itemsTotal + pageSize - 1) / pageSize; // rounded up
+        if (page < 1 || page > pagesTotal) {
+            addTextContent(resultContent, "Page is out of range (1-" + pagesTotal + "): " + page);
+            return;
+        }
+        int pageStart = (page - 1) * pageSize;
+        int pageEnd = Math.min(pageStart + pageSize, itemsTotal);
+        jobs = jobs.subList(pageStart, pageEnd);
+        StringBuilder sb = new StringBuilder();
         sb.append("| JOB NAME | LAST STATUS | LAST DATE |\n");
         sb.append("| --- | --- | --- |\n");
         for (Job job : jobs) {
             String jobName = job.getName();
-            if (p != null && !p.matcher(jobName).find()) {
-                continue;
-            }
             Run finishedRun = storage.getLatestFinishedRun(job);
             sb.append("| ");
             sb.append(jobName);
@@ -176,6 +198,7 @@ public class McpHandler {
             }
             sb.append(" |\n");
         }
+        appendPageInfo(sb, page, pagesTotal, itemsTotal);
         addTextContent(resultContent, sb.toString());
     }
 
@@ -186,37 +209,58 @@ public class McpHandler {
             .put("description", "Gets list of tested packages (builds), as MD table")
             .set("inputSchema", mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("pattern", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "Limits listed packages to ones, whose name matches regex pattern (java style)")
+                    ))
+                    .set("page-size", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Sets (max) number of items per page (default " + DEFAULT_PAGE_SIZE + ")")
+                    ))
+                    .set("page", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Page index to show (1-bassed indexing; default 1)")
                     )
                 ));
         tools.add(tool);
     }
 
     void pkgsToolImpl(JsonNode request, ArrayNode resultContent) {
-        StringBuilder sb = new StringBuilder();
         List<Pkg> pkgs = new ArrayList<Pkg>(storage.getPkgs());
         Collections.sort(pkgs);
         String patternStr = getRequestArgument(request, "pattern");
-        Pattern pattern = null;
-        if (patternStr != null) {
-            pattern = Pattern.compile(patternStr);
+        final Pattern p = createPattern(patternStr);
+        if (p != null) {
+            pkgs.removeIf((pkg) -> !p.matcher(pkg.getStrId()).find());
         }
+        int pageSize = getRequestArgumentInt(request, "page-size", DEFAULT_PAGE_SIZE);
+        int page = getRequestArgumentInt(request, "page", 1);
+        int itemsTotal = pkgs.size();
+        if (itemsTotal == 0) {
+            addTextContent(resultContent, "No (matching) pkgs found");
+            return;
+        }
+        int pagesTotal = (itemsTotal + pageSize - 1) / pageSize; // rounded up
+        if (page < 1 || page > pagesTotal) {
+            addTextContent(resultContent, "Page is out of range (1-" + pagesTotal + "): " + page);
+            return;
+        }
+        int pageStart = (page - 1) * pageSize;
+        int pageEnd = Math.min(pageStart + pageSize, itemsTotal);
+        pkgs = pkgs.subList(pageStart, pageEnd);
+        StringBuilder sb = new StringBuilder();
         sb.append("| PKG | RUNS COUNT |\n");
         sb.append("| --- | --- |\n");
         for (Pkg pkg : pkgs) {
             String pkgName = pkg.getStrId();
-            if (pattern != null && !pattern.matcher(pkgName).find()) {
-                continue;
-            }
             sb.append("| ");
             sb.append(pkg.getStrId());
             sb.append(" | ");
             sb.append(storage.getPkgRunsCount(pkg));
             sb.append(" |\n");
         }
+        appendPageInfo(sb, page, pagesTotal, itemsTotal);
         addTextContent(resultContent, sb.toString());
     }
 
@@ -227,14 +271,18 @@ public class McpHandler {
             .put("description", "Gets list of testsuite runs for specific job, as MD table")
             .set("inputSchema", ((ObjectNode) mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", ((ObjectNode) mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("job", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "name of job for which to list testsuite runs")
                     ))
-                    .set("limit", mapper.createObjectNode()
+                    .set("page-size", mapper.createObjectNode()
                         .put("type", "integer")
-                        .put("description", "limits listed runs to given number of most recent ones (default is no limit)")
+                        .put("description", "Sets (max) number of items per page (default " + DEFAULT_PAGE_SIZE + ")")
+                    ))
+                    .set("page", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Page index to show (1-bassed indexing; default 1)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -249,27 +297,33 @@ public class McpHandler {
         if (jobName == null) {
             throw new IllegalArgumentException("Missing argument: job");
         }
-        int limit = -1;
-        String limitStr = getRequestArgument(request, "limit");
-        if (limitStr != null) {
-            limit = Integer.valueOf(limitStr);
-        }
         Job job = storage.getJob(jobName);
         if (job == null) {
             addTextContent(resultContent, "Job not found: " + jobName);
             return;
         }
-        StringBuilder sb = new StringBuilder();
         List<Run> runs = new ArrayList<Run>(storage.getJobRuns(job));
         Collections.sort(runs);
         Collections.reverse(runs); // order from last to first
+        int pageSize = getRequestArgumentInt(request, "page-size", DEFAULT_PAGE_SIZE);
+        int page = getRequestArgumentInt(request, "page", 1);
+        int itemsTotal = runs.size();
+        if (itemsTotal == 0) {
+            addTextContent(resultContent, "No (matching) run found");
+            return;
+        }
+        int pagesTotal = (itemsTotal + pageSize - 1) / pageSize; // rounded up
+        if (page < 1 || page > pagesTotal) {
+            addTextContent(resultContent, "Page is out of range (1-" + pagesTotal + "): " + page);
+            return;
+        }
+        int pageStart = (page - 1) * pageSize;
+        int pageEnd = Math.min(pageStart + pageSize, itemsTotal);
+        runs = runs.subList(pageStart, pageEnd);
+        StringBuilder sb = new StringBuilder();
         sb.append("| RUN_ID | STATUS | DATE | PKG |\n");
         sb.append("| --- | --- | --- | --- |\n");
-        int count = 0;
         for (Run run : runs) {
-            if (count++ == limit) {
-                break;
-            }
             String status = getStatusString(run.getStatus());
             sb.append("| ");
             sb.append(run.getName());
@@ -282,6 +336,7 @@ public class McpHandler {
             sb.append(pkg != null ? pkg.getStrId() : "");
             sb.append(" |\n");
         }
+        appendPageInfo(sb, page, pagesTotal, itemsTotal);
         addTextContent(resultContent, sb.toString());
     }
 
@@ -292,7 +347,7 @@ public class McpHandler {
             .put("description", "Gets list of testsuite runs for specific package (build), as MD table")
             .set("inputSchema", ((ObjectNode) mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("pkg", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "name of package for which to list testsuite runs")
@@ -304,6 +359,14 @@ public class McpHandler {
                     .set("unsuccessful-only", mapper.createObjectNode()
                         .put("type", "boolean")
                         .put("description", "Only lists runs whose result is not SUCCESS, true or false (default false)")
+                    ))
+                    .set("page-size", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Sets (max) number of items per page (default " + DEFAULT_PAGE_SIZE + ")")
+                    ))
+                    .set("page", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Page index to show (1-bassed indexing; default 1)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -323,26 +386,38 @@ public class McpHandler {
             addTextContent(resultContent, "Pkg not found: " + pkgName);
             return;
         }
-        String patternStr = getRequestArgument(request, "job-pattern");
-        Pattern pattern = null;
-        if (patternStr != null) {
-            pattern = Pattern.compile(patternStr);
-        }
-        boolean unsuccessful = getRequestArgumentBoolean(request, "unsuccessful-only", false);
-        StringBuilder sb = new StringBuilder();
         List<Run> runs = new ArrayList<Run>(storage.getPkgRuns(pkg));
         Collections.sort(runs);
+        String patternStr = getRequestArgument(request, "job-pattern");
+        final Pattern p = createPattern(patternStr);
+        if (p != null) {
+            runs.removeIf((run) -> !p.matcher(run.getJob().getName()).find());
+        }
+        boolean unsuccessful = getRequestArgumentBoolean(request, "unsuccessful-only", false);
+        if (unsuccessful) {
+            runs.removeIf((run) -> run.getStatus() == Run.SUCCESS);
+        }
+        int pageSize = getRequestArgumentInt(request, "page-size", DEFAULT_PAGE_SIZE);
+        int page = getRequestArgumentInt(request, "page", 1);
+        int itemsTotal = runs.size();
+        if (itemsTotal == 0) {
+            addTextContent(resultContent, "No (matching) run found");
+            return;
+        }
+        int pagesTotal = (itemsTotal + pageSize - 1) / pageSize; // rounded up
+        if (page < 1 || page > pagesTotal) {
+            addTextContent(resultContent, "Page is out of range (1-" + pagesTotal + "): " + page);
+            return;
+        }
+        int pageStart = (page - 1) * pageSize;
+        int pageEnd = Math.min(pageStart + pageSize, itemsTotal);
+        runs = runs.subList(pageStart, pageEnd);
+        StringBuilder sb = new StringBuilder();
         sb.append("| RUN | STATUS | DATE |\n");
         sb.append("| --- | --- | --- |\n");
         for (Run run : runs) {
             String jobName = run.getJob().getName();
-            if (pattern != null && !pattern.matcher(jobName).find()) {
-                continue;
-            }
             int status = run.getStatus();
-            if (unsuccessful && status == Run.SUCCESS) {
-                continue;
-            }
             sb.append("| ");
             sb.append(jobName);
             sb.append("/");
@@ -353,6 +428,7 @@ public class McpHandler {
             sb.append(getFormatedDate(run.getStartTime()));
             sb.append(" |\n");
         }
+        appendPageInfo(sb, page, pagesTotal, itemsTotal);
         addTextContent(resultContent, sb.toString());
     }
 
@@ -363,7 +439,7 @@ public class McpHandler {
             .put("description", "Gets testsuites results summary for run")
             .set("inputSchema", ((ObjectNode) mapper.createObjectNode()
                 .put("type", "object")
-                .set("properties", ((ObjectNode) mapper.createObjectNode()
+                .set("properties", ((ObjectNode) ((ObjectNode) ((ObjectNode) mapper.createObjectNode()
                     .set("run", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "name of run for which get tests summary for (run name has form: JOB_NAME/RUN_ID)")
@@ -371,6 +447,14 @@ public class McpHandler {
                     .set("group", mapper.createObjectNode()
                         .put("type", "string")
                         .put("description", "Only shows summary for specified test group (by default summary for all groups is shown)")
+                    ))
+                    .set("page-size", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Sets (max) number of items per page - used for test problems table(s) (default " + DEFAULT_PAGE_SIZE + ")")
+                    ))
+                    .set("page", mapper.createObjectNode()
+                        .put("type", "integer")
+                        .put("description", "Page index to show - used for test problems table(s) (1-bassed indexing; default 1)")
                     )
                 ))
                 .set("required", mapper.createArrayNode()
@@ -428,16 +512,36 @@ public class McpHandler {
             if (groupArg != null && !groupArg.equals(groupName)) {
                 continue;
             }
-            sb.append("## " + groupName + "\n");
             JsonNode report = testGroupNode.path("report");
+            List<JsonNode> testList = new ArrayList();
+            for (JsonNode problemNode : report.path("testProblems")) {
+                testList.add(problemNode);
+            }
+            testList.sort((node1, node2) -> node1.path("name").asText().compareTo(node2.path("name").asText()));
+            int pageSize = getRequestArgumentInt(request, "page-size", DEFAULT_PAGE_SIZE);
+            int page = getRequestArgumentInt(request, "page", 1);
+            int itemsTotal = testList.size();
+            if (itemsTotal == 0) {
+                continue;
+            }
+            int pagesTotal = (itemsTotal + pageSize - 1) / pageSize; // rounded up
+            if (page < 1 || page > pagesTotal) {
+                addTextContent(resultContent, "Page is out of range (1-" + pagesTotal + "): " + page);
+                continue;
+            }
+            int pageStart = (page - 1) * pageSize;
+            int pageEnd = Math.min(pageStart + pageSize, itemsTotal);
+            testList = testList.subList(pageStart, pageEnd);
+            sb.append("## " + groupName + "\n");
             sb.append("| NAME | STATUS | STATUS LINE |\n");
             sb.append("| --- | --- | --- |\n");
-            for (JsonNode problemNode : report.path("testProblems")) {
+            for (JsonNode problemNode : testList) {
                 String testName =  problemNode.path("name").asText();
                 String testStatus = problemNode.path("status").asText();
                 String testStatusLine = problemNode.path("statusLine").asText();
                 sb.append("| " + testName + " | " + testStatus + " | " + testStatusLine + " |\n");
             }
+            appendPageInfo(sb, page, pagesTotal, itemsTotal);
         }
         resultContent.add(mapper.createObjectNode()
             .put("type", "text")
@@ -677,6 +781,11 @@ public class McpHandler {
             "true".equals(node.asText().toLowerCase()) ? true : false;
     }
 
+    private static int getRequestArgumentInt(JsonNode request, String name, int defaultVal) {
+        JsonNode node = request.path("params").path("arguments").path(name);
+        return node.isMissingNode() ? defaultVal : Integer.valueOf(node.asText());
+    }
+
     private static void addTextContent(ArrayNode resultContent, String s) {
         resultContent.add(mapper.createObjectNode()
             .put("type", "text")
@@ -753,6 +862,19 @@ public class McpHandler {
             resultsFile = jobsRoot.resolve(jobName).resolve("builds").resolve(runId).resolve("jck-report.json");
         }
         return resultsFile;
+    }
+
+    private static Pattern createPattern(String patternStr) {
+        if (patternStr == null || patternStr.isEmpty()) {
+            return null;
+        }
+        return Pattern.compile(patternStr);
+    }
+
+    private static void appendPageInfo(StringBuilder sb, int page, int pagesTotal, int itemsTotal) {
+        if (pagesTotal > 1) {
+            sb.append("\npage " + page + "/" + pagesTotal + " of total " + itemsTotal + " items" + (page == 1 ? " (use page argument to access rest)" : "") + "\n");
+        }
     }
 
 
