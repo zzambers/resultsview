@@ -722,7 +722,7 @@ public class McpHandler {
                         outputBuilder.append(outputValue + "\n");
                 }
                 List<String> lines;
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(outputBuilder.toString().getBytes("UTF-8"))))) {
+                try (BufferedReader br = new BufferedReader(new StringReader(outputBuilder.toString()))) {
                     lines = filterLines(request, br);
                 }
                 StringBuilder logSb = new StringBuilder();
@@ -804,6 +804,8 @@ public class McpHandler {
         return false;
     }
 
+    static Pattern ansiColorsPattern = Pattern.compile("\\033\\[[0-9;]+m");
+
     List<String> filterLines(JsonNode request, BufferedReader reader) throws IOException {
         String rangesStr = getRequestArgument(request, "ranges");
         String patternStr = getRequestArgument(request, "pattern");
@@ -846,7 +848,9 @@ public class McpHandler {
                     continue;
                 }
             }
-            line = line.replaceAll("\\033\\[[0-9;]+m", ""); // remove ansi colors
+            if (line.indexOf('\033') >= 0) {
+                line = ansiColorsPattern.matcher(line).replaceAll(""); // remove ansi colors
+            }
             if (pattern != null && !pattern.matcher(line).find()) {
                 continue;
             }
