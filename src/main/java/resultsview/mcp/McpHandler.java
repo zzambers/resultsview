@@ -482,6 +482,10 @@ public class McpHandler {
             return;
         }
         Path resultsFile = reportJsonFile(jobName, runId);
+        if (!resultsFile.normalize().equals(resultsFile)) { // should not happen
+            addTextContent(resultContent, "Path traversal denied: " + resultsFile);
+            return;
+        }
         if (!Files.exists(resultsFile)){
             addTextContent(resultContent, "No test results found for: " + runName);
             return;
@@ -616,6 +620,10 @@ public class McpHandler {
             return;
         }
         Path logFile = jobsRoot.resolve(jobName).resolve("builds").resolve(runId).resolve("log");
+        if (!logFile.normalize().equals(logFile)) { // should not happen
+            addTextContent(resultContent, "Path traversal denied: " + logFile);
+            return;
+        }
         if (!Files.exists(logFile)){
             addTextContent(resultContent, "Cannot find log for: " + runName);
             return;
@@ -697,6 +705,10 @@ public class McpHandler {
             return;
         }
         Path resultsFile = reportJsonFile(jobName, runId);
+        if (!resultsFile.normalize().equals(resultsFile)) { // should not happen
+            addTextContent(resultContent, "Path traversal denied: " + resultsFile);
+            return;
+        }
         if (!Files.exists(resultsFile)){
             addTextContent(resultContent, "No test results found for: " + runName);
             return;
