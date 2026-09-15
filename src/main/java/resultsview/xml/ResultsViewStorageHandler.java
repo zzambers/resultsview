@@ -72,6 +72,10 @@ public class ResultsViewStorageHandler extends SAXTreeHandler {
 				job = storage.getJob(name);
 				if (job == null) {
 					job = new Job(name);
+                    String modifTimeStr = attributes.getValue("modifTime");
+                    if (modifTimeStr != null) {
+                        job.modifTime = Long.valueOf(modifTimeStr);
+                    }
 					storage.storeJob(job);
 				}
             }

@@ -206,7 +206,9 @@ public class Storage implements StorageInterface {
             Job job = entry.getKey();
             ArrayList<Run> runs = new ArrayList<Run>(entry.getValue().values());
             Collections.sort(runs);
-            ps.println("<job name=\"" + xmlEscape(job.getName()) + "\" >");
+            ps.print("<job name=\"" + xmlEscape(job.getName()) + "\" ");
+            ps.print("modifTime=\"" + xmlEscape(String.valueOf(job.modifTime)) + "\" ");
+            ps.println(">");
             for (Run run : runs) {
                 ps.print("<run id=\"" + xmlEscape(run.getName()) + "\" ");
                 ps.print("status=\"" + xmlEscape(Run.getStatusString(run.getStatus())) + "\" ");
