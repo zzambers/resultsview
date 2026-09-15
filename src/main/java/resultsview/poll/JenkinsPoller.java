@@ -51,8 +51,6 @@ public class JenkinsPoller {
     StorageInterface storage;
     public Pattern jobPattern = null;
 
-    Map<String, String> runNameMap = new HashMap<>();
-
     public long rootModifTime = Long.MIN_VALUE;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("[0-9]+");
 
@@ -157,8 +155,7 @@ public class JenkinsPoller {
                 if (NUMBER_PATTERN.matcher(buildId).matches()) {
                     if (latestKnownRunName == null || VersionUtil.versionCompare(latestKnownRunName, buildId) < 0) {
                         if (Files.isDirectory(buildDir)) {
-                            runNameMap.putIfAbsent(buildId, buildId);
-                            buildId = runNameMap.get(buildId);
+                            buildId = Run.internId(buildId);
                             Run run = new Run(job, buildId);
                             processRun(run);
                             storage.storeRun(run);
@@ -180,8 +177,7 @@ public class JenkinsPoller {
         if (Files.exists(buildXml)) {
             try {
                 SAXParserFactory factory = SAXParserFactory.newInstance();
-                SAXParser saxParser;
-                saxParser = factory.newSAXParser();
+                SAXParser saxParser = factory.newSAXParser();
                 handler = new BuildXmlHandler();
                 saxParser.parse(buildXml.toFile(), handler);
             } catch (Exception e) {
@@ -197,18 +193,7 @@ public class JenkinsPoller {
             String resultStr = handler.getResult();
             int result = Run.RUNNING;
             if (resultStr != null) {
-                switch (resultStr.toUpperCase()) {
-                    case "SUCCESS":
-                        return Run.SUCCESS;
-                    case "UNSTABLE":
-                        return Run.UNSTABLE;
-                    case "FAILURE":
-                        return Run.FAILURE;
-                    case "ABORTED":
-                        return Run.ABORTED;
-                    case "NOT_BUILT":
-                        return Run.NOT_BUILT;
-                }
+                return Run.getStatus(resultStr.toUpperCase());
             }
         }
         return Run.RUNNING;
@@ -230,11 +215,11 @@ public class JenkinsPoller {
         Path buildsDir = jobDir.resolve("builds");
         Path buildDir = buildsDir.resolve(run.getName());
         Path buildXml = buildDir.resolve("build.xml");
+        long modifTime;
         if (Files.exists(buildXml)) {
-            long modifTime = Files.getLastModifiedTime(buildXml).toMillis();
+            modifTime = Files.getLastModifiedTime(buildXml).toMillis();
             if (modifTime > run.modifTime) {
-                run.modifTime = modifTime;
-                int status = Run.RUNNING;
+                int status = Run.UNKNOWN;
                 BuildXmlHandler handler = parseBuildXml(buildXml);
                 if (handler != null) {
                     status = getStatus(handler);
@@ -259,9 +244,21 @@ public class JenkinsPoller {
                     }
                 }
                 run.setStatus(status);
+                run.modifTime = modifTime;
             }
-        } else if (run.getStatus() == Run.UNKNOWN) {
-            run.setStatus(Run.RUNNING);
+        } else {
+            if (Files.exists(buildDir)) {
+                modifTime = Files.getLastModifiedTime(buildDir).toMillis();
+            } else {
+                modifTime = System.currentTimeMillis();
+            }
+        }
+        int status = run.getStatus();
+        if (status == Run.UNKNOWN || status == Run.RUNNING) {
+            long age = System.currentTimeMillis() - modifTime;
+            long ageLimit = 14L * 24L * 3600L * 1000L; // two weeks in ms
+            // runs older than age limit considered aborted
+            run.setStatus(age > ageLimit ? Run.ABORTED : Run.RUNNING);
         }
     }
 

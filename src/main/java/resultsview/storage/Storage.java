@@ -30,11 +30,16 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.io.PrintStream;
+import java.io.InputStream;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import resultsview.xml.ResultsViewStorageHandler;
 
 public class Storage implements StorageInterface {
 
     Map<String, Job> jobs = new HashMap<>();
-    Map<Job, Set<Run>> jobsRuns = new HashMap<>(); // runs for given job
+    Map<Job, Map<String, Run>> jobsRuns = new HashMap<>(); // runs for given job
 
     Map<String, Pkg> pkgs = new HashMap<>();
     Map<Pkg, Set<Run>> pkgsRuns = new HashMap<>(); // runs for given pkg
@@ -54,16 +59,15 @@ public class Storage implements StorageInterface {
 
     @Override
     public Run getRun(String jobName, String runId) {
-        Job job = getJob(jobName);
+        Job job = jobs.get(jobName);
         if (job == null) {
             return null;
         }
-        for (Run run : getJobRuns(job)) {
-            if (run.getName().equals(runId)) {
-                return run;
-            }
+        Map<String, Run> runs = jobsRuns.get(job);
+        if (runs == null) {
+            return null;
         }
-        return null;
+        return runs.get(runId);
     }
 
     @Override
@@ -78,8 +82,8 @@ public class Storage implements StorageInterface {
 
     @Override
     public Collection<Run> getJobRuns(Job job) {
-        Set<Run> runs = jobsRuns.get(job);
-        return runs != null ? new HashSet<Run>(runs) : Collections.<Run>emptySet();
+        Map<String, Run> runs = jobsRuns.get(job);
+        return runs != null ? new HashSet<Run>(runs.values()) : Collections.<Run>emptySet();
     }
 
     @Override
@@ -98,14 +102,12 @@ public class Storage implements StorageInterface {
     public void removeJob(String name) {
         Job removedJob = jobs.remove(name);
         jobsLatestRun.remove(removedJob);
-        Set<Run> removedRuns = jobsRuns.remove(removedJob);
+        Map<String, Run> removedRuns = jobsRuns.remove(removedJob);
         if (removedRuns != null) {
-            for (Run run : removedRuns) {
-                for (Pkg pkg : pkgs.values()) {
-                    Set<Run> pkgRuns = pkgsRuns.get(pkg);
-                    if (pkgRuns != null) {
-                        pkgRuns.remove(run);
-                    }
+            for (Run run : removedRuns.values()) {
+                Set<Run> runs = pkgsRuns.get(run.getPkg());
+                if (runs != null) {
+                    runs.remove(run);
                 }
                 unfinishedRuns.remove(run);
             }
@@ -127,14 +129,12 @@ public class Storage implements StorageInterface {
     @Override
     public void storeRun(Run run) {
         Job job = run.getJob();
-        Set<Run> runs = jobsRuns.get(job);
+        Map<String, Run> runs = jobsRuns.get(job);
         if (runs == null) {
-            runs = new HashSet<>();
+            runs = new HashMap<>();
             jobsRuns.put(job, runs);
         }
-        if (!runs.contains(run)) {
-            runs.add(run);
-        }
+        runs.putIfAbsent(run.getName(), run);
     }
 
     @Override
@@ -192,6 +192,47 @@ public class Storage implements StorageInterface {
     @Override
     public Collection<Run> getUnfinishedRuns() {
         return new HashSet<Run>(unfinishedRuns);
+    }
+
+    private static String xmlEscape(String s) {
+        return s;
+    }
+
+    public void saveStorage(PrintStream ps) {
+        ps.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        ps.println("<resultsviewstorage version=\"1.0\">");
+        ps.println("<jobs>");
+        for (Map.Entry<Job, Map<String, Run>> entry : jobsRuns.entrySet()) {
+            Job job = entry.getKey();
+            ArrayList<Run> runs = new ArrayList<Run>(entry.getValue().values());
+            Collections.sort(runs);
+            ps.println("<job name=\"" + xmlEscape(job.getName()) + "\" >");
+            for (Run run : runs) {
+                ps.print("<run id=\"" + xmlEscape(run.getName()) + "\" ");
+                ps.print("status=\"" + xmlEscape(Run.getStatusString(run.getStatus())) + "\" ");
+                ps.print("modifTime=\"" + xmlEscape(String.valueOf(run.modifTime)) + "\" ");
+                ps.print("startTime=\"" + xmlEscape(String.valueOf(run.getStartTime())) + "\" ");
+                Pkg pkg = run.getPkg();
+                if (pkg != null) {
+                    ps.print("pkg=\"" + xmlEscape(pkg.getStrId()) + "\" ");
+                }
+                ps.println("/>");
+            }
+            ps.println("</job>");
+        }
+        ps.println("</jobs>");
+        ps.println("</resultsviewstorage>");
+    }
+
+    public void loadStorage(InputStream is) {
+        try {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            ResultsViewStorageHandler handler = new ResultsViewStorageHandler(this);
+            saxParser.parse(is, handler);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }

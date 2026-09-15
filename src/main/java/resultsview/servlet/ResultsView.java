@@ -26,9 +26,11 @@ package resultsview.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -99,10 +101,18 @@ public class ResultsView extends HttpServlet {
             @Override
             public void run() {
                 try {
+                    if (!initialPollDone) {
+                        Path savedStorage = Paths.get("/var/tmp/resulsviewstorage.xml");
+                        if (Files.exists(savedStorage)) {
+                            try (InputStream is = Files.newInputStream(savedStorage)) {
+                                storage.loadStorage(is);
+                            }
+                        }
+                    }
                     jenkinsPoller.poll();
                     initialPollDone = true;
                 } catch (Exception ex) {
-                    Logger.getLogger(ResultsView.class.getName()).log(Level.SEVERE, null, ex);
+                    ex.printStackTrace();
                 }
             }
         }, 0, 60_000);
@@ -111,6 +121,11 @@ public class ResultsView extends HttpServlet {
     @Override
     public void destroy() {
         timer.cancel();
+        try (PrintStream ps = new PrintStream("/var/tmp/resulsviewstorage.xml")) {
+            storage.saveStorage(ps);
+        } catch (Exception ex) {
+            Logger.getLogger(ResultsView.class.getName()).log(Level.SEVERE, null, ex);
+        }
         timer = null;
         jenkinsPoller = null;
         storage = null;

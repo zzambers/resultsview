@@ -190,7 +190,7 @@ public class McpHandler {
             sb.append(jobName);
             sb.append(" | ");
             if (finishedRun != null) {
-                sb.append(getStatusString(finishedRun.getStatus()));
+                sb.append(Run.getStatusString(finishedRun.getStatus()));
             }
             sb.append(" | ");
             if (finishedRun != null) {
@@ -324,7 +324,7 @@ public class McpHandler {
         sb.append("| RUN_ID | STATUS | DATE | PKG |\n");
         sb.append("| --- | --- | --- | --- |\n");
         for (Run run : runs) {
-            String status = getStatusString(run.getStatus());
+            String status = Run.getStatusString(run.getStatus());
             sb.append("| ");
             sb.append(run.getName());
             sb.append(" | ");
@@ -423,7 +423,7 @@ public class McpHandler {
             sb.append("/");
             sb.append(run.getName());
             sb.append(" | ");
-            sb.append(getStatusString(status));
+            sb.append(Run.getStatusString(status));
             sb.append(" | ");
             sb.append(getFormatedDate(run.getStartTime()));
             sb.append(" |\n");
@@ -754,28 +754,6 @@ public class McpHandler {
     }
 
     /* UTILITY FUNCTIONS */
-
-    static String getStatusString(int status) {
-        switch (status) {
-            case Run.RUNNING:
-                return "RUNNING";
-            case Run.SUCCESS:
-                return "SUCCESS";
-            case Run.UNSTABLE:
-                return "UNSTABLE";
-            case Run.FAILURE:
-                return "FAILURE";
-            case Run.ABORTED:
-                return "ABORTED";
-            case Run.NOT_BUILT:
-                return "NOT_BUILT";
-            case Run.FINISHED:
-                return "FINISHED";
-            case Run.UNKNOWN:
-            default:
-                return "UNKNOWN";
-        }
-    }
 
     private static SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     private static String getFormatedDate(long date) {

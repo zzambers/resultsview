@@ -24,6 +24,7 @@
 package resultsview.storage;
 
 import resultsview.common.VersionUtil;
+import java.util.*;
 
 public class Run  implements Comparable<Run> {
 
@@ -120,6 +121,54 @@ public class Run  implements Comparable<Run> {
     public int compareTo(Run t) {
         int res = job.compareTo(t.job);
         return res != 0 ? res : VersionUtil.versionCompare(this.name, t.name);
+    }
+
+    public static int getStatus(String status) {
+        switch (status.toUpperCase()) {
+            case "SUCCESS":
+                return Run.SUCCESS;
+            case "UNSTABLE":
+                return Run.UNSTABLE;
+            case "FAILURE":
+                return Run.FAILURE;
+            case "ABORTED":
+                return Run.ABORTED;
+            case "NOT_BUILT":
+                return Run.NOT_BUILT;
+            case "RUNNING":
+                return Run.RUNNING;
+            case "UNKNOWN":
+            default:
+                return Run.UNKNOWN;
+        }
+    }
+
+    public static String getStatusString(int status) {
+        switch (status) {
+            case Run.RUNNING:
+                return "RUNNING";
+            case Run.SUCCESS:
+                return "SUCCESS";
+            case Run.UNSTABLE:
+                return "UNSTABLE";
+            case Run.FAILURE:
+                return "FAILURE";
+            case Run.ABORTED:
+                return "ABORTED";
+            case Run.NOT_BUILT:
+                return "NOT_BUILT";
+            case Run.FINISHED:
+                return "FINISHED";
+            case Run.UNKNOWN:
+            default:
+                return "UNKNOWN";
+        }
+    }
+
+    static Map<String, String> runNameMap = new HashMap<>();
+    public static String internId(String buildId) {
+        runNameMap.putIfAbsent(buildId, buildId);
+        return runNameMap.get(buildId);
     }
 
 }
